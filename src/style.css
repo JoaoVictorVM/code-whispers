@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: Inter, system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+  --color-bg: rgb(17 24 39);
+  --color-surface: rgb(31 41 55);
+  --color-text: rgb(243 244 246);
+  --color-muted: rgb(156 163 175);
+  --color-accent: rgb(99 102 241);
+  --color-danger: rgb(239 68 68);
+  --color-warning: rgb(245 158 11);
+  --color-success: rgb(34 197 94);
+}
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 1rem;
+  max-width: 1024px;
+}
+
+@layer base {
+  body {
+    @apply min-h-screen bg-bg font-sans text-text antialiased;
+  }
+}
