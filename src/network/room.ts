@@ -11,6 +11,13 @@ import type {
 import { generateRoomCode, normalizeRoomCode } from './roomCode'
 
 export const APP_ID = 'code-whispers'
+export const NOSTR_RELAY_URLS = [
+  'wss://nos.lol',
+  'wss://bucket.coracle.social',
+  'wss://relay.primal.net',
+  'wss://nostr.mom',
+  'wss://relay.snort.social',
+]
 export const JOIN_TIMEOUT_MS = 10_000
 export const SIGNALING_TIMEOUT_MS = 15_000
 const SIGNALING_POLL_MS = 250
@@ -108,7 +115,7 @@ function fail(type: ConnectionErrorType): void {
 }
 
 function openRoom(code: string, currentSession: number): { room: Room; handshake: Handshake } {
-  const room = joinRoom({ appId: APP_ID }, code)
+  const room = joinRoom({ appId: APP_ID, relayConfig: { urls: NOSTR_RELAY_URLS } }, code)
   activeRoom = room
   const handshake: Handshake = {
     hello: room.makeAction<HelloPayload>('hello'),

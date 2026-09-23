@@ -27,7 +27,15 @@ vi.mock('trystero/nostr', () => ({
   getRelaySockets: trystero.getRelaySockets,
 }))
 
-const { hostRoom, joinRoomByCode, leaveRoom, getActiveRoom, JOIN_TIMEOUT_MS, SIGNALING_TIMEOUT_MS } =
+const {
+  hostRoom,
+  joinRoomByCode,
+  leaveRoom,
+  getActiveRoom,
+  JOIN_TIMEOUT_MS,
+  SIGNALING_TIMEOUT_MS,
+  NOSTR_RELAY_URLS,
+} =
   await import('./room')
 
 function createFakeRoom(): FakeRoom {
@@ -84,7 +92,10 @@ describe('room lifecycle', () => {
     expect(room?.role).toBe('host')
     expect(room?.mode).toBe(3)
     expect(connection.status).toBe('connecting')
-    expect(trystero.joinRoom).toHaveBeenCalledWith({ appId: 'code-whispers' }, room?.code)
+    expect(trystero.joinRoom).toHaveBeenCalledWith(
+      { appId: 'code-whispers', relayConfig: { urls: NOSTR_RELAY_URLS } },
+      room?.code,
+    )
   })
 
   it('test_host_accepts_first_hello_and_sends_welcome', () => {
@@ -149,9 +160,19 @@ describe('room lifecycle', () => {
     expect(gameState.get().connection.status).toBe('idle')
   })
 
+  it('uses the fixed list of nostr relays', () => {
+    expect(NOSTR_RELAY_URLS.length).toBeGreaterThanOrEqual(3)
+    expect(NOSTR_RELAY_URLS.every((url) => url.startsWith('wss://'))).toBe(true)
+    hostRoom(host, 3)
+    expect(trystero.joinRoom.mock.calls[0][0].relayConfig.urls).toBe(NOSTR_RELAY_URLS)
+  })
+
   it('test_joinRoomByCode_sends_hello_on_join', () => {
     joinRoomByCode(guest, ' ab3xyz ')
-    expect(trystero.joinRoom).toHaveBeenCalledWith({ appId: 'code-whispers' }, 'AB3XYZ')
+    expect(trystero.joinRoom).toHaveBeenCalledWith(
+      { appId: 'code-whispers', relayConfig: { urls: NOSTR_RELAY_URLS } },
+      'AB3XYZ',
+    )
     lastRoom().onPeerJoin?.('host-peer')
     expect(lastRoom().actions.hello.send).toHaveBeenCalledTimes(1)
     expect(lastRoom().actions.hello.send).toHaveBeenCalledWith(guest, { target: 'host-peer' })

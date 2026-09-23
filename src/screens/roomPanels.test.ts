@@ -27,7 +27,9 @@ vi.mock('trystero/nostr', () => ({
 
 const { default: inicio } = await import('./inicio')
 const { gameState } = await import('../state/gameState')
-const { leaveRoom, JOIN_TIMEOUT_MS, SIGNALING_TIMEOUT_MS } = await import('../network/room')
+const { leaveRoom, JOIN_TIMEOUT_MS, SIGNALING_TIMEOUT_MS, NOSTR_RELAY_URLS } = await import(
+  '../network/room'
+)
 const { COPIED_FEEDBACK_MS } = await import('./roomPanels')
 
 let root: HTMLElement
@@ -192,7 +194,10 @@ describe('room panels on the start screen', () => {
     expect(join.textContent).toBe('Conectando…')
     expect(join.disabled).toBe(true)
     expect(query<HTMLButtonElement>('create-room').disabled).toBe(true)
-    expect(trystero.joinRoom).toHaveBeenCalledWith({ appId: 'code-whispers' }, 'AB3XYZ')
+    expect(trystero.joinRoom).toHaveBeenCalledWith(
+      { appId: 'code-whispers', relayConfig: { urls: NOSTR_RELAY_URLS } },
+      'AB3XYZ',
+    )
   })
 
   it('test_room_not_found_message_after_timeout', () => {
