@@ -1,6 +1,7 @@
 import './style.css'
 import { gameState } from './state/gameState'
 import { leaveRoom } from './network/room'
+import './network/sync'
 import { createDisconnectModal } from './ui/disconnectModal'
 import type { GameState, ScreenId } from './types/game'
 import type { ScreenModule } from './screens/screen'

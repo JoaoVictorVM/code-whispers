@@ -50,5 +50,6 @@ describe('gameState', () => {
     expect(initial.readyFlags).toEqual({ local: false, opponent: false })
     expect(initial.submissions).toEqual({})
     expect(initial.tallies.local).toEqual({ correct: 0, half: 0, wrong: 0 })
+    expect(initial.rematchFlags).toEqual({ local: false, opponent: false })
   })
 })
