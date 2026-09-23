@@ -7,6 +7,8 @@ function createInitialState(): GameState {
     screen: 'inicio',
     localPlayer: null,
     remotePlayer: null,
+    room: null,
+    connection: { status: 'idle', error: null },
     mode: 3,
     round: 1,
     phase: 'code',

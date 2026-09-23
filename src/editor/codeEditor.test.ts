@@ -141,7 +141,7 @@ describe('createEditor', () => {
     alertSpy.mockRestore()
   })
 
-  it('test_editable_instance_snapshot_shape_matches_F06_contract', () => {
+  it('test_editable_instance_snapshot_shape_matches_code_screen_contract', () => {
     const instance = create({ initialLanguage: 'typescript' })
     viewOf(parent).dispatch({ changes: { from: 0, insert: 'let n: number = 1' } })
     const snapshot = instance.getSnapshot()

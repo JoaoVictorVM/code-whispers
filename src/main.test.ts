@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('trystero/nostr', () => ({ joinRoom: vi.fn(), getRelaySockets: vi.fn(() => ({})) }))
 import { bootstrap } from './main'
 import { gameState } from './state/gameState'
 import type { ScreenId } from './types/game'
@@ -51,5 +53,42 @@ describe('screen router', () => {
     const mounted = root.querySelector('[data-screen="inicio"]')
     gameState.patch({ round: 2 })
     expect(root.querySelector('[data-screen="inicio"]')).toBe(mounted)
+  })
+
+  it('shows the disconnect modal over a game screen when the opponent leaves', () => {
+    gameState.patch({
+      screen: 'code',
+      remotePlayer: { nickname: 'Ana', avatarId: 2 },
+      connection: { status: 'connected', error: null },
+    })
+    expect(root.querySelector('[data-component="disconnect-modal"]')).toBeNull()
+    gameState.patch({ connection: { status: 'disconnected', error: null } })
+    const modal = root.querySelector('[data-component="disconnect-modal"]')
+    expect(modal?.textContent).toContain('Ana desconectou. A partida foi encerrada.')
+    expect(root.querySelector('[data-screen="code"]')).not.toBeNull()
+  })
+
+  it('does not show the disconnect modal on the start screen', () => {
+    gameState.patch({ connection: { status: 'disconnected', error: null } })
+    expect(root.querySelector('[data-component="disconnect-modal"]')).toBeNull()
+  })
+
+  it('confirming the disconnect modal returns to the start screen with state reset', () => {
+    gameState.patch({
+      screen: 'revisa',
+      round: 3,
+      room: { code: 'AB3XYZ', role: 'host', mode: 5 },
+      remotePlayer: { nickname: 'Ana', avatarId: 2 },
+      connection: { status: 'disconnected', error: null },
+    })
+    root.querySelector<HTMLButtonElement>('[data-component="disconnect-modal"] button')!.click()
+    const state = gameState.get()
+    expect(state.screen).toBe('inicio')
+    expect(state.room).toBeNull()
+    expect(state.remotePlayer).toBeNull()
+    expect(state.round).toBe(1)
+    expect(state.connection).toEqual({ status: 'idle', error: null })
+    expect(root.querySelector('[data-component="disconnect-modal"]')).toBeNull()
+    expect(root.querySelector('[data-screen="inicio"]')).not.toBeNull()
   })
 })
