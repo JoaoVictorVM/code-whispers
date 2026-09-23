@@ -8,11 +8,13 @@ import {
   validateNickname,
 } from '../state/profile'
 import { createAvatarPicker } from '../ui/avatarPicker'
+import { createRoomPanels, type RoomPanels } from './roomPanels'
 import type { ScreenModule } from './screen'
 
 const DEFAULT_AVATAR_ID = 1
 
 let container: HTMLElement | null = null
+let roomPanels: RoomPanels | null = null
 
 function truncateNickname(value: string): string {
   return [...value].slice(0, NICKNAME_MAX_LENGTH).join('')
@@ -116,10 +118,14 @@ function mount(root: HTMLElement): void {
 
   renderAvatars()
   syncProfile()
+  roomPanels = createRoomPanels()
+  container.append(roomPanels.element)
   root.append(container)
 }
 
 function unmount(): void {
+  roomPanels?.destroy()
+  roomPanels = null
   container?.remove()
   container = null
 }
