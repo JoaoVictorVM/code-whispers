@@ -1,5 +1,5 @@
 import { getRelaySockets, joinRoom, type MessageAction, type Room } from 'trystero/nostr'
-import { gameState } from '../state/gameState'
+import { createMatchState, gameState } from '../state/gameState'
 import { AVATAR_IDS, validateNickname } from '../state/profile'
 import type {
   ConnectionErrorType,
@@ -49,6 +49,10 @@ export function getActiveRoom(): Room | null {
   return activeRoom
 }
 
+export function getOpponentPeerId(): string | null {
+  return opponentPeerId
+}
+
 function schedule(callback: () => void, delay: number): void {
   const timer = setTimeout(() => {
     timers.delete(timer)
@@ -76,17 +80,7 @@ function teardown(): void {
 }
 
 function matchStartState(): Partial<GameState> {
-  return {
-    screen: 'code',
-    round: 1,
-    phase: 'code',
-    readyFlags: { local: false, opponent: false },
-    submissions: {},
-    tallies: {
-      local: { correct: 0, half: 0, wrong: 0 },
-      remote: { correct: 0, half: 0, wrong: 0 },
-    },
-  }
+  return { screen: 'code', ...createMatchState() }
 }
 
 function parseProfile(data: unknown): PlayerProfile | null {
