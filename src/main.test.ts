@@ -4,7 +4,7 @@ import { gameState } from './state/gameState'
 import type { ScreenId } from './types/game'
 
 const headings: Record<ScreenId, string> = {
-  inicio: 'Início',
+  inicio: 'Code Whispers',
   code: 'Escrever',
   explica: 'Explicar',
   revisa: 'Avaliar',
@@ -27,7 +27,7 @@ describe('screen router', () => {
   })
 
   it('test_initial_mount_renders_current_screen', () => {
-    expect(root.querySelector('h1')?.textContent).toBe('Início')
+    expect(root.querySelector('h1')?.textContent).toBe('Code Whispers')
     expect(root.querySelector('[data-screen="inicio"]')).not.toBeNull()
   })
 
