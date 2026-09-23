@@ -85,4 +85,5 @@ export interface GameState {
   readyFlags: ReadyFlags
   submissions: Record<number, RoundSubmissions>
   tallies: Tallies
+  rematchFlags: ReadyFlags
 }

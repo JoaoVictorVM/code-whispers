@@ -2,14 +2,13 @@ import type { GameState } from '../types/game'
 
 type Listener = (state: GameState) => void
 
-function createInitialState(): GameState {
+export type MatchState = Pick<
+  GameState,
+  'round' | 'phase' | 'readyFlags' | 'submissions' | 'tallies' | 'rematchFlags'
+>
+
+export function createMatchState(): MatchState {
   return {
-    screen: 'inicio',
-    localPlayer: null,
-    remotePlayer: null,
-    room: null,
-    connection: { status: 'idle', error: null },
-    mode: 3,
     round: 1,
     phase: 'code',
     readyFlags: { local: false, opponent: false },
@@ -18,6 +17,19 @@ function createInitialState(): GameState {
       local: { correct: 0, half: 0, wrong: 0 },
       remote: { correct: 0, half: 0, wrong: 0 },
     },
+    rematchFlags: { local: false, opponent: false },
+  }
+}
+
+function createInitialState(): GameState {
+  return {
+    screen: 'inicio',
+    localPlayer: null,
+    remotePlayer: null,
+    room: null,
+    connection: { status: 'idle', error: null },
+    mode: 3,
+    ...createMatchState(),
   }
 }
 
