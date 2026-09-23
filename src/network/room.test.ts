@@ -223,7 +223,7 @@ describe('room lifecycle', () => {
     expect(gameState.get().remotePlayer).toBeNull()
   })
 
-  it('test_hello_payload_uses_F02_profile', () => {
+  it('test_hello_and_welcome_payloads_use_local_profile', () => {
     gameState.patch({ localPlayer: { nickname: 'Perfil', avatarId: 6 } })
     const profile = gameState.get().localPlayer!
     joinRoomByCode(profile, 'AB3XYZ')
@@ -235,7 +235,7 @@ describe('room lifecycle', () => {
     expect(lastRoom().actions.welcome.send).toHaveBeenCalledWith({ ...profile, mode: 3 }, { target: 'peer-a' })
   })
 
-  it('test_room_session_shape_available_for_F04', () => {
+  it('test_room_session_and_handle_available_for_match_sync', () => {
     joinRoomByCode(guest, 'AB3XYZ')
     receive('welcome', { ...host, mode: 5 }, 'host-peer')
     expect(gameState.get().room).toStrictEqual({ code: 'AB3XYZ', role: 'guest', mode: 5 })
@@ -243,7 +243,7 @@ describe('room lifecycle', () => {
     expect(typeof getActiveRoom()?.makeAction).toBe('function')
   })
 
-  it('test_room_session_and_remote_profile_available_for_F09', () => {
+  it('test_room_session_and_remote_profile_available_for_summary', () => {
     gameState.patch({ localPlayer: host })
     hostRoom(host, 7)
     receive('hello', guest, 'peer-a')
