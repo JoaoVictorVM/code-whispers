@@ -18,11 +18,11 @@ export const EXPLANATION_MIN_CHARS = 10
 export const EXPLANATION_MAX_CHARS = 500
 export const PENDING_BUFFER_LIMIT = 3
 
-export interface ExplanationPayload {
+export type ExplanationPayload = {
   explanation: string
 }
 
-export interface VerdictPayload {
+export type VerdictPayload = {
   verdict: Verdict
 }
 

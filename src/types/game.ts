@@ -26,7 +26,7 @@ export interface ReadyFlags {
   opponent: boolean
 }
 
-export interface CodeSubmission {
+export type CodeSubmission = {
   language: LanguageId
   code: string
 }
