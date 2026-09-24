@@ -136,20 +136,8 @@ describe('sync protocol', () => {
   })
 
   it('trims trailing blank lines and counts the remaining lines', () => {
-    expect(trimSnippet('a
-
-b
-
-  
-')).toBe('a
-
-b')
-    expect(countSnippetLines('a
-
-b
-
-  
-')).toBe(3)
+    expect(trimSnippet('a\n\nb\n\n  \n')).toBe('a\n\nb')
+    expect(countSnippetLines('a\n\nb\n\n  \n')).toBe(3)
     expect(countSnippetLines('')).toBe(0)
   })
 })
