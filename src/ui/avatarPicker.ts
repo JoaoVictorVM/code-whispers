@@ -8,7 +8,7 @@ export interface AvatarPickerOptions {
 const tileBase =
   'flex aspect-square items-center justify-center overflow-hidden rounded-full bg-surface transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-function avatarSrc(basePath: string, id: number): string {
+export function avatarSrc(basePath: string, id: number): string {
   return `${basePath}/avatar-${String(id).padStart(2, '0')}.png`
 }
 
