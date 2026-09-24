@@ -9,7 +9,7 @@ const headings: Record<ScreenId, string> = {
   inicio: 'Code Whispers',
   code: 'Rodada 1 de 3 · Escrever',
   explica: 'Rodada 1 de 3 · Explicar',
-  revisa: 'Avaliar',
+  revisa: 'Rodada 1 de 3 · Avaliar',
   final: 'Fim de jogo',
 }
 
