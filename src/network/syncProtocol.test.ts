@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyVerdicts,
+  countSnippetLines,
   nextPhase,
   pushPending,
   roundsForMode,
   stepIndex,
   takeApplicable,
+  trimSnippet,
   validateExplanation,
   validateReadyPayload,
   validateSnippet,
@@ -131,5 +133,23 @@ describe('sync protocol', () => {
     const tallies = applyVerdicts(emptyTallies(), 'correct', 'half')
     expect(tallies.remote).toEqual({ correct: 1, half: 0, wrong: 0 })
     expect(tallies.local).toEqual({ correct: 0, half: 1, wrong: 0 })
+  })
+
+  it('trims trailing blank lines and counts the remaining lines', () => {
+    expect(trimSnippet('a
+
+b
+
+  
+')).toBe('a
+
+b')
+    expect(countSnippetLines('a
+
+b
+
+  
+')).toBe(3)
+    expect(countSnippetLines('')).toBe(0)
   })
 })
