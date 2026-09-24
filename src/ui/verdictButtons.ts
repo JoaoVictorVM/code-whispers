@@ -22,7 +22,7 @@ const buttonBase =
 
 export function createVerdictButtons({ selected, onSelect }: VerdictButtonsOptions): HTMLElement {
   const group = document.createElement('div')
-  group.className = 'flex flex-wrap gap-3'
+  group.className = 'grid grid-cols-3 gap-3'
   group.dataset.component = 'verdict-buttons'
   group.setAttribute('role', 'group')
 
