@@ -7,7 +7,7 @@ import type { ScreenId } from './types/game'
 
 const headings: Record<ScreenId, string> = {
   inicio: 'Code Whispers',
-  code: 'Escrever',
+  code: 'Rodada 1 de 3 · Escrever',
   explica: 'Explicar',
   revisa: 'Avaliar',
   final: 'Fim de jogo',
@@ -37,7 +37,7 @@ describe('screen router', () => {
     const previous = root.querySelector('[data-screen="inicio"]')
     gameState.patch({ screen: 'code' })
     expect(root.contains(previous)).toBe(false)
-    expect(root.querySelector('[data-screen="code"] h1')?.textContent).toBe('Escrever')
+    expect(root.querySelector('[data-screen="code"] h1')?.textContent).toBe('Rodada 1 de 3 · Escrever')
     expect(root.children).toHaveLength(1)
   })
 

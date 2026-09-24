@@ -66,7 +66,7 @@ export function nextPhase(round: number, phase: PlayPhase, totalRounds: number):
   return { round: round + 1, phase: 'code' }
 }
 
-function charCount(value: string): number {
+export function charCount(value: string): number {
   return [...value].length
 }
 
@@ -74,6 +74,14 @@ function snippetLines(code: string): string[] {
   const lines = code.split('\n')
   while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop()
   return lines
+}
+
+export function trimSnippet(code: string): string {
+  return snippetLines(code).join('\n')
+}
+
+export function countSnippetLines(code: string): number {
+  return snippetLines(code).length
 }
 
 export function validateSnippet(code: string): ValidationResult<string> {
