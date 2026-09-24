@@ -41,4 +41,17 @@ describe('readyButton', () => {
     button.click()
     expect(onToggle).toHaveBeenCalledTimes(1)
   })
+
+  it('disables the button and shows the reason when requested', () => {
+    const { node, button, onToggle } = render({ disabled: true, disabledReason: 'Mínimo de 3 linhas' })
+    expect(button.disabled).toBe(true)
+    expect(node.querySelector('[data-role="disabled-reason"]')?.textContent).toBe('Mínimo de 3 linhas')
+    button.click()
+    expect(onToggle).not.toHaveBeenCalled()
+  })
+
+  it('keeps Cancelar clickable even when the content became invalid', () => {
+    const { button } = render({ localReady: true, disabled: true, disabledReason: 'x' })
+    expect(button.disabled).toBe(false)
+  })
 })
