@@ -1,8 +1,10 @@
 import './style.css'
+import { startGameSounds } from './audio/gameSounds'
 import { gameState } from './state/gameState'
 import { leaveRoom } from './network/room'
 import './network/sync'
 import { createDisconnectModal } from './ui/disconnectModal'
+import { createSoundToggle } from './ui/soundToggle'
 import type { GameState, ScreenId } from './types/game'
 import type { ScreenModule } from './screens/screen'
 import inicio from './screens/inicio'
@@ -27,6 +29,9 @@ function returnToStart(): void {
 export function bootstrap(root: HTMLElement): () => void {
   let current: ScreenId = gameState.get().screen
   let disconnectModal: HTMLElement | null = null
+  const soundToggle = createSoundToggle()
+  document.body.append(soundToggle.element)
+  const stopSounds = startGameSounds()
   screens[current].mount(root)
 
   function syncDisconnectModal(state: GameState): void {
@@ -54,6 +59,8 @@ export function bootstrap(root: HTMLElement): () => void {
 
   return () => {
     unsubscribe()
+    stopSounds()
+    soundToggle.destroy()
     disconnectModal?.remove()
     disconnectModal = null
     screens[current].unmount()
