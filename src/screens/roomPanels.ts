@@ -1,8 +1,10 @@
+import { play } from '../audio/sfx'
 import { CONNECTION_ERROR_MESSAGES, hostRoom, joinRoomByCode, leaveRoom } from '../network/room'
 import { ROOM_CODE_LENGTH, normalizeRoomCode, sanitizeRoomCodeInput } from '../network/roomCode'
 import { gameState } from '../state/gameState'
 import { NICKNAME_RULE_MESSAGE } from '../state/profile'
 import type { GameState, MatchMode } from '../types/game'
+import { canAnimate, gsap } from '../ui/motion'
 
 export const MODE_OPTIONS: readonly { value: MatchMode; label: string }[] = [
   { value: 3, label: 'Rápida (3)' },
@@ -19,13 +21,12 @@ export interface RoomPanels {
   destroy(): void
 }
 
-const panelClass = 'flex flex-col gap-4 rounded-xl bg-surface p-5'
-const primaryButtonClass =
-  'inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-5 py-3 font-semibold text-white transition-colors hover:bg-accent/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-accent'
-const secondaryButtonClass =
-  'rounded-lg border border-muted/40 px-4 py-2 text-sm font-medium text-text transition-colors hover:bg-bg/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
-const fieldClass =
-  'w-full rounded-lg border border-bg bg-bg px-3 py-2 text-text focus:border-accent focus:outline-none'
+const panelClass = 'ink-card flex flex-col gap-4 p-5 sm:p-6'
+const primaryButtonClass = 'btn-chunky w-full bg-tangerine px-5 py-3 text-lg text-ink'
+const secondaryButtonClass = 'btn-chunky bg-paper px-5 py-2 text-sm text-ink'
+const fieldClass = 'field-ink w-full px-3 py-2.5 font-bold'
+const tileClass =
+  'room-tile grid size-11 place-items-center rounded-lg border-[3px] border-ink bg-sunflower font-display text-2xl text-ink shadow-[0_4px_0_var(--color-ink)] sm:size-12'
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -41,7 +42,7 @@ function element<K extends keyof HTMLElementTagNameMap>(
 function setButtonContent(button: HTMLButtonElement, label: string, loading: boolean): void {
   button.replaceChildren()
   if (loading) {
-    const spinner = element('span', 'size-4 animate-spin rounded-full border-2 border-white/40 border-t-white')
+    const spinner = element('span', 'size-4 animate-spin rounded-full border-[3px] border-ink/25 border-t-ink')
     spinner.setAttribute('aria-hidden', 'true')
     button.append(spinner)
   }
@@ -55,6 +56,9 @@ function modeLabel(mode: MatchMode): string {
 
 export function createRoomPanels(): RoomPanels {
   let pending: PendingAction = null
+  let shownCode = ''
+  let lastError: GameState['connection']['error'] = null
+  const animated = canAnimate()
   let copyTimer: ReturnType<typeof setTimeout> | null = null
 
   const wrapper = element('div', 'grid w-full max-w-3xl gap-4 sm:grid-cols-2')
@@ -62,39 +66,57 @@ export function createRoomPanels(): RoomPanels {
 
   const hostPanel = element('div', panelClass)
   hostPanel.dataset.role = 'host-panel'
-  const hostTitle = element('h2', 'text-lg font-semibold', 'Criar sala')
+  const hostTitle = element('h2', 'font-display text-2xl', 'Criar sala')
 
   const hostForm = element('div', 'flex flex-col gap-4')
-  const modeLabelElement = element('label', 'flex flex-col gap-1 text-sm text-muted', 'Modo')
-  const modeSelect = element('select', fieldClass)
+  const modeLabelElement = element('label', 'flex flex-col gap-1.5 text-sm font-extrabold uppercase tracking-wider', 'Modo')
+  const modeSelect = element('select', 'sr-only')
   modeSelect.dataset.role = 'mode-select'
   for (const option of MODE_OPTIONS) {
     const optionElement = element('option', '', option.label)
     optionElement.value = String(option.value)
     modeSelect.append(optionElement)
   }
-  modeLabelElement.append(modeSelect)
+  const modeChips = element('div', 'grid grid-cols-3 gap-2')
+  modeChips.dataset.role = 'mode-chips'
+  modeChips.setAttribute('aria-hidden', 'true')
+  const chipButtons = MODE_OPTIONS.map((option) => {
+    const chip = element('button', 'btn-chunky flex-col gap-0 px-2 py-2 text-ink')
+    chip.type = 'button'
+    chip.tabIndex = -1
+    chip.dataset.mode = String(option.value)
+    const [name, rounds] = option.label.replace(')', '').split(' (')
+    chip.append(element('span', 'font-display text-2xl leading-none', rounds), element('span', 'text-xs font-extrabold uppercase', name))
+    chip.addEventListener('click', () => {
+      if (modeSelect.disabled || modeSelect.value === chip.dataset.mode) return
+      modeSelect.value = chip.dataset.mode!
+      modeSelect.dispatchEvent(new Event('change'))
+    })
+    modeChips.append(chip)
+    return chip
+  })
+  modeLabelElement.append(modeSelect, modeChips)
   const createButton = element('button', primaryButtonClass)
   createButton.type = 'button'
   createButton.dataset.role = 'create-room'
-  const hostError = element('p', 'text-sm text-danger')
+  const hostError = element('p', 'text-sm font-bold text-cherry')
   hostError.dataset.role = 'host-error'
   hostError.setAttribute('role', 'alert')
   hostForm.append(modeLabelElement, createButton, hostError)
 
-  const hostWaiting = element('div', 'flex flex-col items-center gap-3 text-center')
-  const codeDisplay = element('output', 'select-all font-mono text-4xl font-bold tracking-[0.3em] text-accent')
+  const hostWaiting = element('div', 'flex flex-col items-center gap-4 text-center')
+  const codeDisplay = element('output', 'flex justify-center gap-1.5 sm:gap-2')
   codeDisplay.dataset.role = 'room-code'
   const copyButton = element('button', secondaryButtonClass, 'Copiar')
   copyButton.type = 'button'
   copyButton.dataset.role = 'copy-code'
-  const copyError = element('p', 'text-sm text-warning')
+  const copyError = element('p', 'text-sm font-bold text-cherry')
   copyError.dataset.role = 'copy-error'
-  const modeInfo = element('p', 'text-sm text-muted')
+  const modeInfo = element('p', 'text-sm font-extrabold uppercase tracking-wider text-ink/70')
   modeInfo.dataset.role = 'room-mode'
-  const waitingLabel = element('p', 'text-sm text-muted', 'Aguardando o outro jogador…')
+  const waitingLabel = element('p', 'font-bold text-ink/80', 'Aguardando o outro jogador…')
   waitingLabel.setAttribute('aria-live', 'polite')
-  const cancelButton = element('button', 'text-sm text-muted underline hover:text-text', 'Cancelar')
+  const cancelButton = element('button', 'text-sm font-bold text-ink/60 underline decoration-2 underline-offset-4 hover:text-ink', 'Cancelar')
   cancelButton.type = 'button'
   cancelButton.dataset.role = 'cancel-room'
   hostWaiting.append(codeDisplay, copyButton, copyError, modeInfo, waitingLabel, cancelButton)
@@ -103,11 +125,11 @@ export function createRoomPanels(): RoomPanels {
 
   const guestPanel = element('div', panelClass)
   guestPanel.dataset.role = 'guest-panel'
-  const guestTitle = element('h2', 'text-lg font-semibold', 'Entrar em sala')
-  const codeLabel = element('label', 'flex flex-col gap-1 text-sm text-muted', 'Código da sala')
+  const guestTitle = element('h2', 'font-display text-2xl', 'Entrar em sala')
+  const codeLabel = element('label', 'flex flex-col gap-1.5 text-sm font-extrabold uppercase tracking-wider', 'Código da sala')
   const codeInput = element(
     'input',
-    `${fieldClass} font-mono text-xl uppercase tracking-[0.3em] placeholder:tracking-normal placeholder:text-muted`,
+    `${fieldClass} font-mono text-2xl uppercase tracking-[0.35em] placeholder:tracking-normal`,
   )
   codeInput.id = 'room-code-input'
   codeInput.dataset.role = 'room-code-input'
@@ -121,7 +143,7 @@ export function createRoomPanels(): RoomPanels {
   const joinButton = element('button', primaryButtonClass)
   joinButton.type = 'button'
   joinButton.dataset.role = 'join-room'
-  const guestError = element('p', 'text-sm text-danger')
+  const guestError = element('p', 'text-sm font-bold text-cherry')
   guestError.id = 'guest-error'
   guestError.dataset.role = 'guest-error'
   guestError.setAttribute('role', 'alert')
@@ -142,13 +164,22 @@ export function createRoomPanels(): RoomPanels {
     hostForm.hidden = hosting
     hostWaiting.hidden = !hosting
     modeSelect.disabled = busy
+    for (const chip of chipButtons) {
+      const active = chip.dataset.mode === modeSelect.value
+      chip.disabled = busy
+      chip.classList.toggle('bg-sky', active)
+      chip.classList.toggle('bg-paper', !active)
+      chip.setAttribute('aria-pressed', String(active))
+    }
     createButton.disabled = !localPlayer || busy
     createButton.title = profileReason
     setButtonContent(createButton, creating ? 'Criando sala…' : 'Criar sala', creating)
 
     if (hosting && room) {
-      codeDisplay.textContent = room.code
+      showCode(room.code)
       modeInfo.textContent = `Modo: ${modeLabel(room.mode)}`
+    } else {
+      shownCode = ''
     }
 
     const codeValid = normalizeRoomCode(codeInput.value) !== null
@@ -164,7 +195,37 @@ export function createRoomPanels(): RoomPanels {
       errorType === 'not-found' || errorType === 'room-full' ? connection.error!.message : ''
     guestError.hidden = !guestError.textContent
 
+    if (connection.error && connection.error !== lastError) {
+      shake(errorType === 'signaling' ? hostPanel : guestPanel)
+      play('error')
+    }
+    lastError = connection.error
+
     if (!hosting) resetCopyFeedback()
+  }
+
+  function showCode(code: string): void {
+    if (code === shownCode) return
+    shownCode = code
+    const tiles = Array.from(code, (char) => element('span', tileClass, char))
+    codeDisplay.replaceChildren(...tiles)
+    if (!animated) return
+    gsap.from(tiles, {
+      rotationX: -90,
+      y: -20,
+      opacity: 0,
+      duration: 0.45,
+      ease: 'back.out(2)',
+      stagger: {
+        each: 0.08,
+        onStart: () => play('pop'),
+      },
+    })
+  }
+
+  function shake(target: HTMLElement): void {
+    if (!animated) return
+    gsap.fromTo(target, { x: -10 }, { x: 0, duration: 0.5, ease: 'elastic.out(1.4, 0.2)' })
   }
 
   function resetCopyFeedback(): void {
@@ -191,6 +252,8 @@ export function createRoomPanels(): RoomPanels {
       if (!navigator.clipboard) throw new Error('clipboard unavailable')
       await navigator.clipboard.writeText(code)
       copyButton.textContent = 'Copiado!'
+      play('success')
+      if (animated) gsap.fromTo(codeDisplay.children, { y: 0 }, { y: -10, duration: 0.14, yoyo: true, repeat: 1, stagger: 0.04, ease: 'power2.out' })
       copyTimer = setTimeout(() => {
         copyTimer = null
         copyButton.textContent = 'Copiar'
@@ -206,6 +269,7 @@ export function createRoomPanels(): RoomPanels {
     const profile = gameState.get().localPlayer
     if (!profile) return
     pending = 'host'
+    play('tap')
     hostRoom(profile, Number(modeSelect.value) as MatchMode)
   })
 
@@ -213,7 +277,15 @@ export function createRoomPanels(): RoomPanels {
     const profile = gameState.get().localPlayer
     if (!profile || normalizeRoomCode(codeInput.value) === null) return
     pending = 'guest'
+    play('tap')
     joinRoomByCode(profile, codeInput.value)
+  })
+
+  modeSelect.addEventListener('change', () => {
+    play('select')
+    render(gameState.get())
+    const chip = chipButtons.find((candidate) => candidate.dataset.mode === modeSelect.value)
+    if (animated && chip) gsap.fromTo(chip, { scale: 0.88 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1.3, 0.4)' })
   })
 
   codeInput.addEventListener('input', () => {
@@ -232,6 +304,7 @@ export function createRoomPanels(): RoomPanels {
 
   cancelButton.addEventListener('click', () => {
     pending = null
+    play('tap')
     leaveRoom()
   })
 
