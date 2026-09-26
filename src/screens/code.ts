@@ -85,7 +85,7 @@ function mount(root: HTMLElement): void {
     })
     const wasLocked = editorLocked
     editorLocked = readOnly
-    editorSlot.classList.toggle('opacity-60', readOnly)
+    editorSlot.querySelector('[data-component="code-editor"]')?.classList.toggle('opacity-60', readOnly)
     if (readOnly) {
       editorSlot.append(stamp)
       if (!wasLocked) slamStamp(stamp, editorSlot)
