@@ -20,7 +20,7 @@ const board = {
   ink: '#1b1030',
 }
 
-export const EDITOR_HEIGHT = 'clamp(300px, calc(100dvh - 340px), 640px)'
+export const EDITOR_HEIGHT = 'clamp(300px, calc(100dvh - 370px), 640px)'
 
 const boardView = EditorView.theme(
   {
