@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: './',
   plugins: [tailwindcss()],
+  resolve: {
+    dedupe: ['@lezer/highlight', '@codemirror/state', '@codemirror/view', '@codemirror/language'],
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
