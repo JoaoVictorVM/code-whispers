@@ -11,7 +11,7 @@ export function roundHeaderText({ round, totalRounds, phaseLabel }: RoundHeaderO
 export function createRoundHeader(options: RoundHeaderOptions): HTMLElement {
   const heading = document.createElement('h1')
   heading.dataset.component = 'round-header'
-  heading.className = 'text-2xl font-bold tracking-tight'
+  heading.className = 'display-title text-2xl sm:text-3xl'
   heading.textContent = roundHeaderText(options)
   return heading
 }

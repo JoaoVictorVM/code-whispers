@@ -161,4 +161,11 @@ describe('createEditor', () => {
     const instance = create({ readOnly: true, initialLanguage: 'c', initialCode: code })
     expect(instance.getSnapshot()).toEqual({ language: 'c', code, lineCount: 3, charCount: code.length })
   })
+
+  it('applies the board syntax colors to the tokens', () => {
+    create({ initialCode: 'const total = 42 // fim' })
+    const keyword = Array.from(parent.querySelectorAll<HTMLElement>('.cm-line span')).find((span) => span.textContent === 'const')
+    expect(keyword).toBeDefined()
+    expect(keyword!.className).not.toBe('')
+  })
 })

@@ -105,7 +105,7 @@ describe('code writing screen', () => {
     typeCode(lines(41, 2))
     expect(readyButton().disabled).toBe(true)
     expect(query('disabled-reason').textContent).toBe('Máximo de 40 linhas')
-    expect(query('line-counter').className).toContain('text-danger')
+    expect(query('line-counter').dataset.invalid).toBe('true')
   })
 
   it('test_above_maximum_chars_disables_ready', () => {
@@ -142,7 +142,8 @@ describe('code writing screen', () => {
     readyButton().click()
     expect(sync.ready).toHaveBeenCalledWith({ language: 'javascript', code: lines(3) })
     expect(view().contentDOM.getAttribute('contenteditable')).toBe('false')
-    expect(query('editor-slot').classList.contains('opacity-60')).toBe(true)
+    expect(root.querySelector('[data-component="code-editor"]')!.classList.contains('opacity-60')).toBe(true)
+    expect(root.querySelector('[data-component="stamp"]')?.textContent).toBe('PRONTO!')
     expect(readyButton().textContent).toBe('Cancelar')
     expect(query('waiting-label').textContent).toBe('Aguardando Ana…')
   })
@@ -159,7 +160,8 @@ describe('code writing screen', () => {
     expect(view().contentDOM.getAttribute('contenteditable')).toBe('true')
     expect(view().state.doc.toString()).toBe(lines(4))
     expect(root.querySelector<HTMLSelectElement>('[data-role="language-select"]')!.value).toBe('python')
-    expect(query('editor-slot').classList.contains('opacity-60')).toBe(false)
+    expect(root.querySelector('[data-component="code-editor"]')!.classList.contains('opacity-60')).toBe(false)
+    expect(root.querySelector('[data-component="stamp"]')).toBeNull()
     expect(readyButton().textContent).toBe('Pronto')
   })
 

@@ -8,17 +8,18 @@ export interface VerdictButtonsOptions {
 interface VerdictOption {
   value: Verdict
   label: string
+  icon: string
   colorClass: string
 }
 
 const options: VerdictOption[] = [
-  { value: 'wrong', label: 'Errou', colorClass: 'bg-danger' },
-  { value: 'half', label: 'Meio Certo', colorClass: 'bg-warning' },
-  { value: 'correct', label: 'Correto', colorClass: 'bg-success' },
+  { value: 'wrong', label: 'Errou', icon: '✗', colorClass: 'bg-cherry' },
+  { value: 'half', label: 'Meio Certo', icon: '≈', colorClass: 'bg-sunflower' },
+  { value: 'correct', label: 'Correto', icon: '✓', colorClass: 'bg-mint' },
 ]
 
 const buttonBase =
-  'rounded-lg px-5 py-3 font-semibold text-white transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  'btn-chunky flex-col gap-0.5 px-3 py-4 text-lg text-ink before:font-display before:text-3xl before:leading-none before:content-[attr(data-icon)]'
 
 export function createVerdictButtons({ selected, onSelect }: VerdictButtonsOptions): HTMLElement {
   const group = document.createElement('div')
@@ -30,6 +31,7 @@ export function createVerdictButtons({ selected, onSelect }: VerdictButtonsOptio
     const button = document.createElement('button')
     button.type = 'button'
     button.dataset.verdict = option.value
+    button.dataset.icon = option.icon
     button.textContent = option.label
 
     const isSelected = selected === option.value
@@ -39,8 +41,8 @@ export function createVerdictButtons({ selected, onSelect }: VerdictButtonsOptio
     button.className = [
       buttonBase,
       option.colorClass,
-      isSelected ? 'selected ring-2 ring-white ring-offset-2 ring-offset-bg' : '',
-      isDisabled ? 'opacity-40 cursor-not-allowed' : 'hover:opacity-90',
+      isSelected ? 'selected ring-4 ring-paper ring-offset-2 ring-offset-grape' : '',
+      isDisabled ? 'opacity-45' : '',
     ]
       .filter(Boolean)
       .join(' ')

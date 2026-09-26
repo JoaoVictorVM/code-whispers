@@ -6,7 +6,7 @@ export interface AvatarPickerOptions {
 }
 
 const tileBase =
-  'flex aspect-square items-center justify-center overflow-hidden rounded-full bg-surface transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  'avatar-tile flex aspect-square items-center justify-center overflow-hidden rounded-full border-[3px] border-ink bg-paper transition-transform duration-200 ease-[var(--ease-bounce)] focus:outline-none focus-visible:ring-4 focus-visible:ring-sky'
 
 export function avatarSrc(basePath: string, id: number): string {
   return `${basePath}/avatar-${String(id).padStart(2, '0')}.png`
@@ -16,7 +16,7 @@ export function createAvatarPicker(options: AvatarPickerOptions): HTMLElement {
   const { avatarIds, selectedId, onSelect, basePath = './avatars' } = options
 
   const grid = document.createElement('div')
-  grid.className = 'grid grid-cols-4 gap-3 sm:grid-cols-8'
+  grid.className = 'grid grid-cols-4 gap-3 sm:grid-cols-8 sm:gap-4'
   grid.dataset.component = 'avatar-picker'
   grid.setAttribute('role', 'radiogroup')
 
@@ -30,8 +30,8 @@ export function createAvatarPicker(options: AvatarPickerOptions): HTMLElement {
     tile.setAttribute('aria-checked', String(isSelected))
     tile.setAttribute('aria-label', `Avatar ${id}`)
     tile.className = isSelected
-      ? `${tileBase} selected ring-2 ring-accent ring-offset-2 ring-offset-bg`
-      : `${tileBase} hover:ring-2 hover:ring-muted`
+      ? `${tileBase} selected -translate-y-1 scale-110 bg-sunflower shadow-[0_5px_0_var(--color-ink)] ring-4 ring-tangerine`
+      : `${tileBase} shadow-[0_3px_0_var(--color-ink)] hover:-translate-y-1 hover:-rotate-6`
 
     const image = document.createElement('img')
     image.src = avatarSrc(basePath, id)

@@ -13,7 +13,8 @@ import {
 import { gameState } from '../state/gameState'
 import type { GameState, LanguageId } from '../types/game'
 import { createReadyButton } from '../ui/readyButton'
-import { createRoundHeader } from '../ui/roundHeader'
+import { createGameHud, type GameHud } from '../ui/gameHud'
+import { createStamp, slamStamp } from '../ui/stamp'
 import type { ScreenModule } from './screen'
 
 export const PHASE_LABEL = 'Escrever'
@@ -25,8 +26,8 @@ function opponentName(state: GameState): string {
   return state.remotePlayer?.nickname ?? 'o oponente'
 }
 
-function totalRounds(state: GameState): number {
-  return state.room?.mode ?? state.mode
+function counterClass(invalid: boolean): string {
+  return `rounded-lg border-[3px] border-ink px-2.5 py-0.5 ${invalid ? 'bg-cherry text-ink' : 'bg-paper text-ink'}`
 }
 
 function mount(root: HTMLElement): void {
@@ -35,28 +36,26 @@ function mount(root: HTMLElement): void {
   let code = ''
   let editor: CodeEditor | null = null
   let editorLocked = false
+  let hud: GameHud | null = null
 
   container = document.createElement('section')
   container.dataset.screen = 'code'
-  container.className = 'container flex flex-col gap-4 py-8'
+  container.className = 'container flex flex-col gap-4 py-6'
 
-  const header = createRoundHeader({
-    round: initial.round,
-    totalRounds: totalRounds(initial),
-    phaseLabel: PHASE_LABEL,
-  })
+  hud = createGameHud({ phase: 'code', phaseLabel: PHASE_LABEL })
 
   const instruction = document.createElement('p')
   instruction.dataset.role = 'instruction'
-  instruction.className = 'text-muted'
+  instruction.className = 'self-start rounded-2xl rounded-bl-sm border-[3px] border-ink bg-paper px-4 py-2 font-bold text-ink shadow-[0_3px_0_var(--color-ink)]'
   instruction.textContent = `Escreva ou cole um trecho de código para ${opponentName(initial)} explicar.`
 
   const editorSlot = document.createElement('div')
   editorSlot.dataset.role = 'editor-slot'
-  editorSlot.className = 'transition-opacity'
+  editorSlot.className = 'relative transition-opacity'
+  const stamp = createStamp('PRONTO!', 'mint')
 
   const counters = document.createElement('div')
-  counters.className = 'flex gap-4 text-sm tabular-nums'
+  counters.className = 'flex flex-wrap gap-2 font-mono text-sm font-bold tabular-nums'
   const lineCounter = document.createElement('span')
   lineCounter.dataset.role = 'line-counter'
   const charCounter = document.createElement('span')
@@ -64,12 +63,12 @@ function mount(root: HTMLElement): void {
   counters.append(lineCounter, charCounter)
 
   const footer = document.createElement('div')
-  footer.className = 'flex justify-end'
+  footer.className = 'flex justify-end pb-4'
   const readySlot = document.createElement('div')
   readySlot.dataset.role = 'ready-slot'
   footer.append(readySlot)
 
-  container.append(header, instruction, editorSlot, counters, footer)
+  container.append(hud.element, instruction, editorSlot, counters, footer)
 
   function buildEditor(readOnly: boolean): void {
     editor?.destroy()
@@ -84,8 +83,15 @@ function mount(root: HTMLElement): void {
         render()
       },
     })
+    const wasLocked = editorLocked
     editorLocked = readOnly
-    editorSlot.classList.toggle('opacity-60', readOnly)
+    editorSlot.querySelector('[data-component="code-editor"]')?.classList.toggle('opacity-60', readOnly)
+    if (readOnly) {
+      editorSlot.append(stamp)
+      if (!wasLocked) slamStamp(stamp, editorSlot)
+    } else {
+      stamp.remove()
+    }
   }
 
   function render(): void {
@@ -99,10 +105,10 @@ function mount(root: HTMLElement): void {
     const charsOutOfRange = chars > SNIPPET_MAX_CHARS
 
     lineCounter.textContent = `Linhas ${lines}/${SNIPPET_MAX_LINES}`
-    lineCounter.className = linesOutOfRange ? 'text-danger' : 'text-muted'
+    lineCounter.className = counterClass(linesOutOfRange)
     lineCounter.dataset.invalid = String(linesOutOfRange)
     charCounter.textContent = `Caracteres ${chars}/${SNIPPET_MAX_CHARS}`
-    charCounter.className = charsOutOfRange ? 'text-danger' : 'text-muted'
+    charCounter.className = counterClass(charsOutOfRange)
     charCounter.dataset.invalid = String(charsOutOfRange)
 
     const localReady = state.readyFlags.local
@@ -134,6 +140,8 @@ function mount(root: HTMLElement): void {
 
   teardown = () => {
     unsubscribe()
+    hud?.destroy()
+    hud = null
     editor?.destroy()
     editor = null
   }
