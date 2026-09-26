@@ -10,12 +10,10 @@ import {
 } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { bracketMatching, indentUnit } from '@codemirror/language'
-import { oneDark } from '@codemirror/theme-one-dark'
 import type { LanguageId } from '../types/game'
+import { boardTheme } from './boardTheme'
 import { DEFAULT_LANGUAGE, LANGUAGES, isLanguageId, languageExtension } from './languages'
 
-export const VISIBLE_LINES = 40
-export const LINE_HEIGHT_PX = 16
 const INDENT = '  '
 
 export interface EditorSnapshot {
@@ -43,19 +41,6 @@ export interface CodeEditor {
   destroy(): void
 }
 
-const sizeTheme = EditorView.theme({
-  '&': {
-    height: `${VISIBLE_LINES * LINE_HEIGHT_PX}px`,
-    fontSize: '13px',
-    borderRadius: '0.5rem',
-  },
-  '.cm-scroller': {
-    overflow: 'auto',
-    lineHeight: `${LINE_HEIGHT_PX}px`,
-    fontFamily: 'var(--font-mono)',
-  },
-})
-
 function insertIndent(view: EditorView): boolean {
   if (view.state.readOnly) return false
   view.dispatch(view.state.replaceSelection(INDENT), { scrollIntoView: true, userEvent: 'input' })
@@ -81,18 +66,18 @@ export function createEditor(options: CreateEditorOptions): CodeEditor {
 
   const caption = document.createElement('span')
   caption.dataset.role = 'read-only-caption'
-  caption.className = 'text-xs text-muted'
+  caption.className = 'text-xs font-extrabold uppercase tracking-wider text-lilac'
   caption.textContent = readOnly ? 'Somente leitura' : ''
 
   const selectLabel = document.createElement('label')
-  selectLabel.className = 'ml-auto flex items-center gap-2 text-sm text-muted'
+  selectLabel.className = 'ml-auto flex items-center gap-2 text-sm font-bold text-lilac'
   selectLabel.textContent = 'Linguagem'
 
   const select = document.createElement('select')
   select.dataset.role = 'language-select'
   select.disabled = readOnly
   select.className =
-    'rounded-md border border-surface bg-surface px-2 py-1 text-sm text-text focus:border-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-60'
+    'field-ink px-2 py-1 text-sm font-bold disabled:opacity-80'
   for (const option of LANGUAGES) {
     const element = document.createElement('option')
     element.value = option.id
@@ -138,8 +123,7 @@ export function createEditor(options: CreateEditorOptions): CodeEditor {
         indentUnit.of(INDENT),
         EditorState.tabSize.of(2),
         keymap.of([{ key: 'Tab', run: insertIndent }, ...defaultKeymap, ...historyKeymap]),
-        oneDark,
-        sizeTheme,
+        boardTheme,
         languageCompartment.of(languageExtension(language)),
         EditorState.readOnly.of(readOnly),
         EditorState.changeFilter.of(() => !readOnly),
