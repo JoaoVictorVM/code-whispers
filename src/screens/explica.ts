@@ -10,7 +10,8 @@ import {
 import { gameState } from '../state/gameState'
 import type { GameState, LanguageId } from '../types/game'
 import { createReadyButton } from '../ui/readyButton'
-import { createRoundHeader } from '../ui/roundHeader'
+import { createGameHud } from '../ui/gameHud'
+import { createStamp, slamStamp } from '../ui/stamp'
 import type { ScreenModule } from './screen'
 
 export const PHASE_LABEL = 'Explicar'
@@ -32,13 +33,9 @@ function mount(root: HTMLElement): void {
 
   container = document.createElement('section')
   container.dataset.screen = 'explica'
-  container.className = 'container flex flex-col gap-4 py-8'
+  container.className = 'container flex flex-col gap-5 py-6'
 
-  const header = createRoundHeader({
-    round: initial.round,
-    totalRounds: initial.room?.mode ?? initial.mode,
-    phaseLabel: PHASE_LABEL,
-  })
+  const hud = createGameHud({ phase: 'explain', phaseLabel: PHASE_LABEL })
 
   const columns = document.createElement('div')
   columns.className = 'grid gap-6 lg:grid-cols-2'
@@ -49,11 +46,12 @@ function mount(root: HTMLElement): void {
   codeTitleRow.className = 'flex items-baseline justify-between gap-3'
   const codeTitle = document.createElement('h2')
   codeTitle.dataset.role = 'code-title'
-  codeTitle.className = 'text-lg font-semibold'
+  codeTitle.className =
+    'self-start -rotate-2 rounded-lg border-[3px] border-ink bg-bubblegum px-3 py-0.5 font-display text-lg text-ink shadow-[0_3px_0_var(--color-ink)]'
   codeTitle.textContent = `Código de ${opponentName(initial)}`
   const languageInfo = document.createElement('span')
   languageInfo.dataset.role = 'language-label'
-  languageInfo.className = 'text-sm text-muted'
+  languageInfo.className = 'text-sm font-extrabold uppercase tracking-wider text-lilac'
   languageInfo.textContent = `Linguagem: ${languageLabel(snippet.language)}`
   codeTitleRow.append(codeTitle, languageInfo)
   const editorSlot = document.createElement('div')
@@ -61,30 +59,35 @@ function mount(root: HTMLElement): void {
   codeColumn.append(codeTitleRow, editorSlot)
 
   const explanationColumn = document.createElement('div')
-  explanationColumn.className = 'flex min-w-0 flex-col gap-2'
+  explanationColumn.className = 'relative flex min-w-0 flex-col gap-2'
   const explanationLabel = document.createElement('label')
   explanationLabel.htmlFor = 'explanation'
-  explanationLabel.className = 'text-lg font-semibold'
+  explanationLabel.className =
+    'self-start rotate-1 rounded-lg border-[3px] border-ink bg-sky px-3 py-0.5 font-display text-lg text-ink shadow-[0_3px_0_var(--color-ink)]'
   explanationLabel.textContent = 'Sua explicação'
   const textarea = document.createElement('textarea')
   textarea.id = 'explanation'
   textarea.dataset.role = 'explanation-input'
   textarea.placeholder = 'Explique o que esse código faz…'
   textarea.className =
-    'min-h-64 w-full flex-1 resize-y rounded-lg border border-surface bg-surface p-4 text-text placeholder:text-muted transition-opacity focus:border-accent focus:outline-none'
+    'notebook-paper min-h-64 w-full flex-1 resize-y rounded-2xl border-[3px] border-ink p-4 pl-12 text-lg font-semibold text-ink shadow-[6px_6px_0_var(--color-ink)] placeholder:text-ink/40 transition-opacity focus:outline-none focus-visible:ring-4 focus-visible:ring-sky'
+  const notebook = document.createElement('div')
+  notebook.className = 'relative flex flex-1 flex-col'
+  notebook.append(textarea)
+  const stamp = createStamp('PRONTO!', 'mint')
   const counter = document.createElement('span')
   counter.dataset.role = 'char-counter'
-  explanationColumn.append(explanationLabel, textarea, counter)
+  explanationColumn.append(explanationLabel, notebook, counter)
 
   columns.append(codeColumn, explanationColumn)
 
   const footer = document.createElement('div')
-  footer.className = 'flex justify-end'
+  footer.className = 'flex justify-end pb-4'
   const readySlot = document.createElement('div')
   readySlot.dataset.role = 'ready-slot'
   footer.append(readySlot)
 
-  container.append(header, columns, footer)
+  container.append(hud.element, columns, footer)
 
   const editor: CodeEditor = createEditor({
     parent: editorSlot,
@@ -101,10 +104,16 @@ function mount(root: HTMLElement): void {
     const outOfRange = chars < EXPLANATION_MIN_CHARS || chars > EXPLANATION_MAX_CHARS
 
     counter.textContent = `Caracteres ${chars}/${EXPLANATION_MAX_CHARS}`
-    counter.className = `text-sm tabular-nums ${outOfRange ? 'text-danger' : 'text-muted'}`
+    counter.className = `self-start rounded-lg border-[3px] border-ink px-2.5 py-0.5 font-mono text-sm font-bold tabular-nums text-ink ${outOfRange ? 'bg-cherry' : 'bg-paper'}`
     counter.dataset.invalid = String(outOfRange)
 
     const localReady = state.readyFlags.local
+    if (localReady && !textarea.readOnly) {
+      notebook.append(stamp)
+      slamStamp(stamp, notebook)
+    } else if (!localReady) {
+      stamp.remove()
+    }
     textarea.readOnly = localReady
     textarea.classList.toggle('opacity-60', localReady)
     textarea.setAttribute('aria-invalid', String(!validation.valid))
@@ -135,6 +144,7 @@ function mount(root: HTMLElement): void {
 
   teardown = () => {
     unsubscribe()
+    hud.destroy()
     editor.destroy()
   }
 }

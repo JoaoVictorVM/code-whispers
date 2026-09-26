@@ -102,7 +102,7 @@ describe('explanation screen', () => {
     typeExplanation('a'.repeat(501))
     expect(readyButton().disabled).toBe(true)
     expect(query('disabled-reason').textContent).toBe('Máximo de 500 caracteres')
-    expect(query('char-counter').className).toContain('text-danger')
+    expect(query('char-counter').dataset.invalid).toBe('true')
     typeExplanation('a'.repeat(500))
     expect(readyButton().disabled).toBe(false)
   })
