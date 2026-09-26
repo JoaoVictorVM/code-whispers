@@ -105,7 +105,7 @@ describe('code writing screen', () => {
     typeCode(lines(41, 2))
     expect(readyButton().disabled).toBe(true)
     expect(query('disabled-reason').textContent).toBe('Máximo de 40 linhas')
-    expect(query('line-counter').className).toContain('text-danger')
+    expect(query('line-counter').dataset.invalid).toBe('true')
   })
 
   it('test_above_maximum_chars_disables_ready', () => {
