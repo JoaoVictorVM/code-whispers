@@ -18,7 +18,7 @@ export function createGameHud({ phase, phaseLabel }: GameHudOptions): GameHud {
   const initial = gameState.get()
   const header = document.createElement('header')
   header.dataset.component = 'game-hud'
-  header.className = 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'
+  header.className = 'flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:pr-16'
 
   const titleBlock = document.createElement('div')
   titleBlock.className = 'flex flex-col gap-3'
