@@ -9,4 +9,10 @@ describe('stamp', () => {
     expect(stamp.className).toContain('text-mint')
     expect(() => slamStamp(stamp, document.body)).not.toThrow()
   })
+
+  it('offers a corner size that leaves the content readable', () => {
+    const stamp = createStamp('ERROU', 'cherry', 'corner')
+    expect(stamp.className).toContain('-right-3')
+    expect(stamp.className).not.toContain('top-1/2')
+  })
 })
