@@ -102,7 +102,7 @@ function mount(root: HTMLElement): void {
     if (!ready({ verdict })) return
     selected = verdict
     const { text, tone } = VERDICT_STAMPS[verdict]
-    const stamp = createStamp(text, tone)
+    const stamp = createStamp(text, tone, 'corner')
     card.append(stamp)
     slamStamp(stamp, card)
     render()
