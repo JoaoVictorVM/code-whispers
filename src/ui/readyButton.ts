@@ -5,12 +5,13 @@ export interface ReadyButtonOptions {
   onToggle: () => void
   disabled?: boolean
   disabledReason?: string
+  waitingText?: string
 }
 
 const buttonBase = 'btn-chunky min-w-40 px-8 py-3 text-xl text-ink'
 
 export function createReadyButton(options: ReadyButtonOptions): HTMLElement {
-  const { localReady, opponentReady, opponentNickname, onToggle, disabled = false, disabledReason = '' } = options
+  const { localReady, opponentReady, opponentNickname, onToggle, disabled = false, disabledReason = '', waitingText } = options
 
   const wrapper = document.createElement('div')
   wrapper.className = 'flex flex-col items-end gap-3'
@@ -53,7 +54,7 @@ export function createReadyButton(options: ReadyButtonOptions): HTMLElement {
     const waiting = document.createElement('span')
     waiting.dataset.role = 'waiting-label'
     waiting.className = 'animate-pulse font-bold text-lilac'
-    waiting.textContent = `Aguardando ${opponentNickname}…`
+    waiting.textContent = waitingText ?? `Aguardando ${opponentNickname}…`
     row.append(waiting)
   }
 

@@ -54,4 +54,9 @@ describe('readyButton', () => {
     const { button } = render({ localReady: true, disabled: true, disabledReason: 'x' })
     expect(button.disabled).toBe(false)
   })
+
+  it('uses a custom waiting text when one is given', () => {
+    const { node } = render({ localReady: true, waitingText: 'Esperando 2 jogadores…' })
+    expect(node.querySelector('[data-role="waiting-label"]')?.textContent).toBe('Esperando 2 jogadores…')
+  })
 })
