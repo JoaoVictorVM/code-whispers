@@ -6,9 +6,9 @@ import type { GameState, LobbyPlayer } from '../types/game'
 import { avatarSrc } from '../ui/avatarPicker'
 import { canAnimate, gsap } from '../ui/motion'
 import { createRoomCodeDisplay, type RoomCodeDisplay } from '../ui/roomCodeDisplay'
+import { seatTone } from '../ui/seatTone'
 import type { ScreenModule } from './screen'
 
-const SEAT_TONES = ['bg-sunflower', 'bg-sky', 'bg-bubblegum', 'bg-mint', 'bg-tangerine', 'bg-lilac', 'bg-sky', 'bg-bubblegum']
 const SEAT_TILTS = ['-rotate-2', 'rotate-1', '-rotate-1', 'rotate-2']
 
 let container: HTMLElement | null = null
@@ -36,7 +36,7 @@ function createSeat(player: LobbyPlayer, index: number, isSelf: boolean): HTMLEl
   avatar.alt = ''
   avatar.width = 48
   avatar.height = 48
-  avatar.className = `size-12 rounded-full border-[3px] border-ink shadow-[0_3px_0_var(--color-ink)] ${SEAT_TONES[index % SEAT_TONES.length]}`
+  avatar.className = `size-12 rounded-full border-[3px] border-ink shadow-[0_3px_0_var(--color-ink)] ${seatTone(index)}`
 
   const nickname = document.createElement('span')
   nickname.dataset.role = 'seat-nickname'

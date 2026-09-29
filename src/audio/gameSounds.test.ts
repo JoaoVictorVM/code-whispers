@@ -24,6 +24,13 @@ describe('game sounds', () => {
     expect(sfx.play).toHaveBeenLastCalledWith('fanfare')
   })
 
+  it('celebrates the start of the telephone reveal', () => {
+    gameState.patch({ connection: { status: 'connected', error: null }, screen: 'etapa' })
+    sfx.play.mockReset()
+    gameState.patch({ screen: 'revelacao' })
+    expect(sfx.play).toHaveBeenCalledWith('fanfare')
+  })
+
   it('whooshes between phases and buzzes on disconnect', () => {
     gameState.patch({ connection: { status: 'connected', error: null }, screen: 'code' })
     gameState.patch({ screen: 'explica' })

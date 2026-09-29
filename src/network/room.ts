@@ -1,6 +1,6 @@
 import { getRelaySockets, joinRoom, selfId, type MessageAction, type Room } from 'trystero/nostr'
 import { createMatchState, gameState } from '../state/gameState'
-import { AVATAR_IDS, validateNickname } from '../state/profile'
+import { parseProfile, validateNickname } from '../state/profile'
 import type {
   ConnectionErrorType,
   GameState,
@@ -99,16 +99,6 @@ function matchStartState(): Partial<GameState> {
   return { screen: 'code', ...createMatchState() }
 }
 
-function parseProfile(data: unknown): PlayerProfile | null {
-  if (typeof data !== 'object' || data === null) return null
-  const { nickname, avatarId } = data as Record<string, unknown>
-  if (typeof nickname !== 'string' || typeof avatarId !== 'number') return null
-  if (!AVATAR_IDS.includes(avatarId)) return null
-  const validation = validateNickname(nickname)
-  if (!validation.valid) return null
-  return { nickname: validation.trimmed, avatarId }
-}
-
 function parseMode(data: unknown): MatchMode | null {
   if (typeof data !== 'object' || data === null) return null
   const { mode } = data as Record<string, unknown>
@@ -121,6 +111,7 @@ function fail(type: ConnectionErrorType, message = CONNECTION_ERROR_MESSAGES[typ
     room: null,
     remotePlayer: null,
     lobby: null,
+    telephone: null,
     connection: { status: 'idle', error: { type, message } },
   })
 }
@@ -149,6 +140,7 @@ function acceptTelephoneHost(peerId: string, data: unknown, code: string): void 
     screen: 'sala',
     room: { code, role: 'guest', kind: 'telephone', mode: gameState.get().mode },
     remotePlayer: null,
+    telephone: null,
     lobby: { selfId, hostId: peerId, players, stage: 'lobby', departedNickname: null },
     connection: { status: 'connected', error: null },
   })
@@ -223,6 +215,7 @@ export function hostRoom(profile: PlayerProfile, mode: MatchMode): void {
     room: null,
     remotePlayer: null,
     lobby: null,
+    telephone: null,
     connection: { status: 'connecting', error: null },
   })
 
@@ -280,6 +273,7 @@ export function hostTelephoneRoom(profile: PlayerProfile): void {
     room: null,
     remotePlayer: null,
     lobby: null,
+    telephone: null,
     connection: { status: 'connecting', error: null },
   })
 
@@ -301,6 +295,7 @@ export function hostTelephoneRoom(profile: PlayerProfile): void {
       screen: 'sala',
       room: { code, role: 'host', kind: 'telephone', mode: gameState.get().mode },
       remotePlayer: null,
+      telephone: null,
       lobby: {
         selfId,
         hostId: selfId,
@@ -340,7 +335,7 @@ export function startTelephoneMatch(): boolean {
   if (!activeHandshake || room?.kind !== 'telephone' || room.role !== 'host') return false
   if (!lobby || lobby.stage !== 'lobby' || !canStart(lobby.players)) return false
   activeHandshake.telStart.send({ players: lobby.players }).catch(() => undefined)
-  gameState.patch({ screen: 'etapa', lobby: { ...lobby, stage: 'playing' } })
+  gameState.patch({ screen: 'etapa', lobby: { ...lobby, stage: 'playing' }, telephone: null })
   return true
 }
 
@@ -349,7 +344,7 @@ function applyMatchStart(data: unknown): void {
   const players = parsePlayers(typeof data === 'object' && data !== null ? (data as Record<string, unknown>).players : null)
   if (!lobby || lobby.stage !== 'lobby' || !players || !canStart(players)) return
   if (players[0].id !== lobby.hostId || !players.some((player) => player.id === lobby.selfId)) return
-  gameState.patch({ screen: 'etapa', lobby: { ...lobby, players, stage: 'playing' } })
+  gameState.patch({ screen: 'etapa', lobby: { ...lobby, players, stage: 'playing' }, telephone: null })
 }
 
 function handleGuestDeparture(peerId: string): void {
@@ -394,6 +389,7 @@ export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
     room: null,
     remotePlayer: null,
     lobby: null,
+    telephone: null,
     connection: { status: 'connecting', error: null },
   })
 
@@ -460,6 +456,7 @@ export function leaveRoom(): void {
     room: null,
     remotePlayer: null,
     lobby: null,
+    telephone: null,
     connection: { status: 'idle', error: null },
   })
 }
