@@ -7,7 +7,7 @@ import { createDisconnectModal } from './ui/disconnectModal'
 import { showPhaseSplash } from './ui/phaseSplash'
 import { createSoundToggle } from './ui/soundToggle'
 import type { GameState, ScreenId } from './types/game'
-import type { ScreenModule } from './screens/screen'
+import { createPlaceholderScreen, type ScreenModule } from './screens/screen'
 import inicio from './screens/inicio'
 import code from './screens/code'
 import explica from './screens/explica'
@@ -26,6 +26,8 @@ const screens: Record<ScreenId, ScreenModule> = {
   explica,
   revisa,
   final,
+  sala: createPlaceholderScreen('sala', 'Sala de espera'),
+  etapa: createPlaceholderScreen('etapa', 'A partida vai começar…'),
 }
 
 function returnToStart(): void {

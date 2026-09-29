@@ -11,6 +11,8 @@ const headings: Record<ScreenId, string> = {
   explica: 'Rodada 1 de 3 · Explicar',
   revisa: 'Rodada 1 de 3 · Avaliar',
   final: 'Fim de jogo — Rápida, 3 rodadas',
+  sala: 'Sala de espera',
+  etapa: 'A partida vai começar…',
 }
 
 describe('screen router', () => {
@@ -41,7 +43,7 @@ describe('screen router', () => {
     expect(root.children).toHaveLength(1)
   })
 
-  it('test_all_five_screens_mount_without_error', () => {
+  it('every registered screen mounts without error', () => {
     for (const id of Object.keys(headings) as ScreenId[]) {
       expect(() => gameState.patch({ screen: id })).not.toThrow()
       expect(root.querySelector('h1')?.textContent).toBe(headings[id])

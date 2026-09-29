@@ -1,4 +1,4 @@
-export type ScreenId = 'inicio' | 'code' | 'explica' | 'revisa' | 'final'
+export type ScreenId = 'inicio' | 'code' | 'explica' | 'revisa' | 'final' | 'sala' | 'etapa'
 
 export type GamePhase = 'code' | 'explain' | 'review' | 'summary'
 
