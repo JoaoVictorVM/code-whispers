@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import type { PlayerProfile } from '../types/game'
 import {
+  answerPayload,
   appendStep,
   chainForSeat,
   createChains,
+  parseChains,
+  parseProgress,
+  parseStepMessage,
   seatForChain,
   stepInput,
   stepKind,
+  validateAnswer,
   type StepContent,
 } from './telephoneProtocol'
 
 const PLAYER_COUNTS = [3, 4, 5, 6, 7, 8]
+const snippet = { language: 'python' as const, code: 'x = 1\ny = 2\nprint(x + y)' }
+const text = 'Soma dois números e mostra na tela.'
 
 function players(count: number): PlayerProfile[] {
   return Array.from({ length: count }, (_, index) => ({ nickname: `Jogador ${index}`, avatarId: (index % 8) + 1 }))
@@ -102,5 +109,54 @@ describe('telephone protocol', () => {
         expect(new Set(chain.entries.map((entry) => entry.author.nickname)).size).toBe(count)
       }
     }
+  })
+
+  it('validates answers with the duel limits', () => {
+    expect(validateAnswer('code', snippet)).toEqual({ valid: true, value: snippet })
+    expect(validateAnswer('code', { language: 'python', code: 'x = 1' })).toEqual({ valid: false, reason: 'Mínimo de 3 linhas' })
+    expect(validateAnswer('explain', { text: `  ${text}  ` })).toEqual({ valid: true, value: text })
+    expect(validateAnswer('describe', { text: 'curto' })).toEqual({ valid: false, reason: 'Mínimo de 10 caracteres' })
+    expect(validateAnswer('explain', { text: 'x'.repeat(501) })).toEqual({ valid: false, reason: 'Máximo de 500 caracteres' })
+    expect(validateAnswer('describe', snippet).valid).toBe(false)
+  })
+
+  it('wraps text answers for the network', () => {
+    expect(answerPayload(text)).toEqual({ text })
+    expect(answerPayload(snippet)).toBe(snippet)
+  })
+
+  it('parses step messages whose input matches the previous step', () => {
+    expect(parseStepMessage({ step: 0, total: 4, kind: 'describe', received: null })).toEqual({ step: 0, total: 4, kind: 'describe', received: null })
+    expect(parseStepMessage({ step: 1, total: 3, kind: 'explain', received: snippet })).toEqual({ step: 1, total: 3, kind: 'explain', received: snippet })
+    expect(parseStepMessage({ step: 2, total: 3, kind: 'code', received: text })).toEqual({ step: 2, total: 3, kind: 'code', received: text })
+  })
+
+  it('rejects step messages with a mismatched kind or input', () => {
+    expect(parseStepMessage({ step: 1, total: 3, kind: 'explain', received: text })).toBeNull()
+    expect(parseStepMessage({ step: 2, total: 3, kind: 'code', received: snippet })).toBeNull()
+    expect(parseStepMessage({ step: 1, total: 3, kind: 'code', received: snippet })).toBeNull()
+    expect(parseStepMessage({ step: 0, total: 3, kind: 'code', received: snippet })).toBeNull()
+    expect(parseStepMessage({ step: 3, total: 3, kind: 'code', received: text })).toBeNull()
+    expect(parseStepMessage({ step: 0, total: 2, kind: 'describe', received: null })).toBeNull()
+    expect(parseStepMessage('step')).toBeNull()
+  })
+
+  it('parses progress lists and drops duplicates', () => {
+    expect(parseProgress({ step: 1, readyIds: ['a', 'b', 'a'] }, 3)).toEqual({ step: 1, readyIds: ['a', 'b'] })
+    expect(parseProgress({ step: 3, readyIds: [] }, 3)).toBeNull()
+    expect(parseProgress({ step: 0, readyIds: ['a', 2] }, 3)).toBeNull()
+    expect(parseProgress({ step: 0, readyIds: ['a', 'b', 'c', 'd'] }, 3)).toBeNull()
+  })
+
+  it('parses complete chains and rejects broken ones', () => {
+    const group = players(3)
+    const contents = (step: number) => new Map([0, 1, 2].map((seat) => [seat, stepKind(step, 3) === 'code' ? snippet : text] as const))
+    let chains = createChains(group)
+    for (let step = 0; step < 3; step += 1) chains = appendStep(chains, contents(step), step, group)
+    expect(parseChains(JSON.parse(JSON.stringify(chains)), 3)).toEqual(chains)
+    expect(parseChains(chains.slice(0, 2), 3)).toBeNull()
+    expect(parseChains(chains.map((chain) => ({ ...chain, entries: chain.entries.slice(0, 2) })), 3)).toBeNull()
+    expect(parseChains(chains.map((chain) => ({ ...chain, entries: [chain.entries[1], chain.entries[0], chain.entries[2]] })), 3)).toBeNull()
+    expect(parseChains(chains.map((chain) => ({ ...chain, owner: { nickname: 'x', avatarId: 1 } })), 3)).toBeNull()
   })
 })
