@@ -469,6 +469,66 @@ describe('telephone room', () => {
     expect(gameState.get().lobby).toMatchObject({ stage: 'playing', players: threeSeats })
   })
 
+  it('a guest leaving the waiting room is only removed from the list', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    lastRoom().onPeerLeave?.('peer-a')
+    const remaining = [
+      { id: 'self-peer', ...host, isHost: true },
+      { id: 'peer-b', nickname: 'Gui', avatarId: 3, isHost: false },
+    ]
+    expect(gameState.get().lobby?.players).toEqual(remaining)
+    expect(lastRoom().actions.tel_lobby.send).toHaveBeenLastCalledWith({ players: remaining })
+    expect(gameState.get().connection.status).toBe('connected')
+  })
+
+  it('a guest leaving during the match ends it for everyone', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    startTelephoneMatch()
+    lastRoom().onPeerLeave?.('peer-b')
+    expect(lastRoom().actions.tel_ended.send).toHaveBeenCalledWith({ nickname: 'Gui' })
+    expect(gameState.get().connection.status).toBe('disconnected')
+    expect(gameState.get().lobby?.departedNickname).toBe('Gui')
+  })
+
+  it('a guest leaving during the reveal is only removed from the list', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    startTelephoneMatch()
+    gameState.patch({ lobby: { ...gameState.get().lobby!, stage: 'reveal' } })
+    lastRoom().onPeerLeave?.('peer-b')
+    expect(lastRoom().actions.tel_ended.send).not.toHaveBeenCalled()
+    expect(gameState.get().lobby?.players).toHaveLength(2)
+    expect(gameState.get().connection.status).toBe('connected')
+  })
+
+  it('guest disconnects when the host ends the match', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: threeSeats }, 'host-peer')
+    receive('tel_ended', { nickname: 'Gui' }, 'host-peer')
+    expect(gameState.get().connection.status).toBe('connected')
+    receive('tel_start', { players: threeSeats }, 'host-peer')
+    receive('tel_ended', { nickname: 'Gui' }, 'peer-b')
+    expect(gameState.get().connection.status).toBe('connected')
+    receive('tel_ended', { nickname: 'Gui' }, 'host-peer')
+    expect(gameState.get().connection.status).toBe('disconnected')
+    expect(gameState.get().lobby?.departedNickname).toBe('Gui')
+  })
+
+  it('guest reacts only to the host leaving', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: threeSeats }, 'host-peer')
+    lastRoom().onPeerLeave?.('peer-b')
+    expect(gameState.get().connection.status).toBe('connected')
+    lastRoom().onPeerLeave?.('host-peer')
+    expect(gameState.get().connection.status).toBe('disconnected')
+    expect(gameState.get().lobby?.departedNickname).toBe('João')
+  })
+
   it('leaving the waiting room clears the lobby', () => {
     hostTelephoneRoom(host)
     leaveRoom()

@@ -8,7 +8,7 @@ import type {
   PlayerProfile,
   RoomRole,
 } from '../types/game'
-import { TELEPHONE_MAX_PLAYERS, addPlayer, canStart, isFull, parsePlayers } from './lobbyProtocol'
+import { TELEPHONE_MAX_PLAYERS, addPlayer, canStart, isFull, parsePlayers, removePlayer } from './lobbyProtocol'
 import { generateRoomCode, normalizeRoomCode } from './roomCode'
 
 export const APP_ID = 'code-whispers'
@@ -41,6 +41,7 @@ type TelephoneWelcomePayload = HelloPayload & { kind: 'telephone'; players: Seat
 type WelcomePayload = DuelWelcomePayload | TelephoneWelcomePayload
 type RoomFullPayload = { capacity?: number }
 type PlayersPayload = { players: SeatPayload[] }
+type EndedPayload = { nickname: string }
 type EmptyPayload = Record<string, never>
 
 interface Handshake {
@@ -50,6 +51,7 @@ interface Handshake {
   inProgress: MessageAction<EmptyPayload>
   telLobby: MessageAction<PlayersPayload>
   telStart: MessageAction<PlayersPayload>
+  telEnded: MessageAction<EndedPayload>
 }
 
 let activeRoom: Room | null = null
@@ -170,11 +172,22 @@ function openRoom(code: string, currentSession: number): { room: Room; handshake
     inProgress: room.makeAction<EmptyPayload>('in_progress'),
     telLobby: room.makeAction<PlayersPayload>('tel_lobby'),
     telStart: room.makeAction<PlayersPayload>('tel_start'),
+    telEnded: room.makeAction<EndedPayload>('tel_ended'),
   }
   activeHandshake = handshake
   room.onPeerLeave = (peerId) => {
-    if (currentSession !== session || peerId !== opponentPeerId) return
-    gameState.patch({ connection: { status: 'disconnected', error: null } })
+    if (currentSession !== session) return
+    const state = gameState.get()
+    if (state.room?.kind === 'telephone' && state.room.role === 'host') {
+      handleGuestDeparture(peerId)
+      return
+    }
+    if (peerId !== opponentPeerId) return
+    const departedNickname = state.lobby?.players.find((player) => player.id === peerId)?.nickname ?? null
+    gameState.patch({
+      connection: { status: 'disconnected', error: null },
+      ...(state.lobby ? { lobby: { ...state.lobby, departedNickname } } : {}),
+    })
   }
   return { room, handshake }
 }
@@ -339,6 +352,35 @@ function applyMatchStart(data: unknown): void {
   gameState.patch({ screen: 'etapa', lobby: { ...lobby, players, stage: 'playing' } })
 }
 
+function handleGuestDeparture(peerId: string): void {
+  const lobby = gameState.get().lobby
+  const leaving = lobby?.players.find((player) => player.id === peerId && !player.isHost)
+  if (!lobby || !leaving) return
+  if (lobby.stage === 'playing') {
+    activeHandshake?.telEnded.send({ nickname: leaving.nickname }).catch(() => undefined)
+    gameState.patch({
+      lobby: { ...lobby, departedNickname: leaving.nickname },
+      connection: { status: 'disconnected', error: null },
+    })
+    return
+  }
+  const players = removePlayer(lobby.players, peerId)
+  gameState.patch({ lobby: { ...lobby, players } })
+  activeHandshake?.telLobby.send({ players }).catch(() => undefined)
+}
+
+function applyMatchEnded(data: unknown): void {
+  const lobby = gameState.get().lobby
+  const nickname = typeof data === 'object' && data !== null ? (data as Record<string, unknown>).nickname : null
+  if (!lobby || lobby.stage !== 'playing' || typeof nickname !== 'string') return
+  const validation = validateNickname(nickname)
+  if (!validation.valid) return
+  gameState.patch({
+    lobby: { ...lobby, departedNickname: validation.trimmed },
+    connection: { status: 'disconnected', error: null },
+  })
+}
+
 export function getSelfId(): string {
   return selfId
 }
@@ -399,6 +441,10 @@ export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
 
   handshake.telStart.onMessage = (data, { peerId }) => {
     if (currentSession === session && isFromTelephoneHost(peerId)) applyMatchStart(data)
+  }
+
+  handshake.telEnded.onMessage = (data, { peerId }) => {
+    if (currentSession === session && isFromTelephoneHost(peerId)) applyMatchEnded(data)
   }
 
   schedule(() => {
