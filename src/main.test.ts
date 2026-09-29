@@ -12,7 +12,7 @@ const headings: Record<ScreenId, string> = {
   revisa: 'Rodada 1 de 3 · Avaliar',
   final: 'Fim de jogo — Rápida, 3 rodadas',
   sala: 'Telefone sem fio',
-  etapa: 'A partida vai começar…',
+  etapa: 'Preparando a primeira etapa…',
   revelacao: 'Revelação',
 }
 

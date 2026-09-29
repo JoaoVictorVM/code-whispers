@@ -3,6 +3,7 @@ import { startGameSounds } from './audio/gameSounds'
 import { gameState } from './state/gameState'
 import { leaveRoom } from './network/room'
 import './network/sync'
+import './network/telephone'
 import { createDisconnectModal } from './ui/disconnectModal'
 import { showPhaseSplash } from './ui/phaseSplash'
 import { createSoundToggle } from './ui/soundToggle'
@@ -14,6 +15,7 @@ import explica from './screens/explica'
 import revisa from './screens/revisa'
 import final from './screens/final'
 import sala from './screens/sala'
+import etapa from './screens/etapa'
 
 const PHASE_SPLASH_LABELS: Partial<Record<ScreenId, string>> = {
   code: 'Escrever',
@@ -28,7 +30,7 @@ const screens: Record<ScreenId, ScreenModule> = {
   revisa,
   final,
   sala,
-  etapa: createPlaceholderScreen('etapa', 'A partida vai começar…'),
+  etapa,
   revelacao: createPlaceholderScreen('revelacao', 'Revelação'),
 }
 

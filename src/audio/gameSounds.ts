@@ -19,7 +19,7 @@ export function startGameSounds(): () => void {
       play('error')
       return
     }
-    if (before.screen !== state.screen && state.screen === 'final') {
+    if (before.screen !== state.screen && (state.screen === 'final' || state.screen === 'revelacao')) {
       play('fanfare')
       return
     }
