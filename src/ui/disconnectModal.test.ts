@@ -9,6 +9,11 @@ describe('disconnectModal', () => {
     expect(modal.querySelectorAll('button')).toHaveLength(1)
   })
 
+  it('uses a custom message when one is given', () => {
+    const modal = createDisconnectModal({ opponentNickname: 'João', onConfirm: vi.fn(), message: 'João encerrou a sala.' })
+    expect(modal.querySelector('#disconnect-message')?.textContent).toBe('João encerrou a sala.')
+  })
+
   it('test_confirm_button_invokes_callback', () => {
     const onConfirm = vi.fn()
     const modal = createDisconnectModal({ opponentNickname: 'Ana', onConfirm })

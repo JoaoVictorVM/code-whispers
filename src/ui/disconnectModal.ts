@@ -3,9 +3,10 @@ import { canAnimate, gsap } from './motion'
 export interface DisconnectModalOptions {
   opponentNickname: string
   onConfirm: () => void
+  message?: string
 }
 
-export function createDisconnectModal({ opponentNickname, onConfirm }: DisconnectModalOptions): HTMLElement {
+export function createDisconnectModal({ opponentNickname, onConfirm, message: customMessage }: DisconnectModalOptions): HTMLElement {
   const overlay = document.createElement('div')
   overlay.dataset.component = 'disconnect-modal'
   overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-grape-deep/80 p-4 backdrop-blur-sm'
@@ -24,7 +25,7 @@ export function createDisconnectModal({ opponentNickname, onConfirm }: Disconnec
   const message = document.createElement('p')
   message.id = 'disconnect-message'
   message.className = 'font-display text-xl leading-snug'
-  message.textContent = `${opponentNickname} desconectou. A partida foi encerrada.`
+  message.textContent = customMessage ?? `${opponentNickname} desconectou. A partida foi encerrada.`
 
   const button = document.createElement('button')
   button.type = 'button'
