@@ -27,7 +27,7 @@ vi.mock('trystero/nostr', () => ({
 }))
 
 const { gameState } = await import('../state/gameState')
-const { hostTelephoneRoom, leaveRoom, startTelephoneMatch } = await import('./room')
+const { hostTelephoneRoom, joinRoomByCode, leaveRoom, startTelephoneMatch } = await import('./room')
 const { startTelephone, stopTelephone, submitStep, retractStep } = await import('./telephone')
 
 const host: PlayerProfile = { nickname: 'João', avatarId: 1 }
@@ -72,34 +72,37 @@ function answerAll(seats: number): void {
   }
 }
 
-describe('telephone match engine as host', () => {
-  beforeEach(() => {
-    gameState.reset()
-    trystero.rooms.length = 0
-    trystero.joinRoom.mockReset().mockImplementation(() => {
-      const fake: FakeRoom = {
-        actions: {},
-        makeAction(name) {
-          const created: FakeAction = { send: vi.fn().mockResolvedValue(undefined), onMessage: null }
-          fake.actions[name] = created
-          return created
-        },
-        leave: vi.fn().mockResolvedValue(undefined),
-        onPeerJoin: null,
-        onPeerLeave: null,
-      }
-      trystero.rooms.push(fake)
-      return fake
-    })
-    trystero.getRelaySockets.mockReset().mockReturnValue({ relay: { readyState: WebSocket.OPEN } })
-    startTelephone()
+function resetFakeRoom(): void {
+  gameState.reset()
+  trystero.rooms.length = 0
+  trystero.joinRoom.mockReset().mockImplementation(() => {
+    const fake: FakeRoom = {
+      actions: {},
+      makeAction(name) {
+        const created: FakeAction = { send: vi.fn().mockResolvedValue(undefined), onMessage: null }
+        fake.actions[name] = created
+        return created
+      },
+      leave: vi.fn().mockResolvedValue(undefined),
+      onPeerJoin: null,
+      onPeerLeave: null,
+    }
+    trystero.rooms.push(fake)
+    return fake
   })
+  trystero.getRelaySockets.mockReset().mockReturnValue({ relay: { readyState: WebSocket.OPEN } })
+  startTelephone()
+}
 
-  afterEach(() => {
-    stopTelephone()
-    leaveRoom()
-    vi.restoreAllMocks()
-  })
+function cleanUp(): void {
+  stopTelephone()
+  leaveRoom()
+  vi.restoreAllMocks()
+}
+
+describe('telephone match engine as host', () => {
+  beforeEach(resetFakeRoom)
+  afterEach(cleanUp)
 
   it('dispatches the first step to every guest when the match starts', async () => {
     await hostMatch(2)
@@ -219,5 +222,130 @@ describe('telephone match engine as host', () => {
     leaveRoom()
     expect(gameState.get().telephone).toBeNull()
     expect(submitStep(snippet)).toBe(false)
+  })
+})
+
+const seats = [
+  { id: 'host-peer', ...host, isHost: true },
+  { id: 'self-peer', ...guests[0], isHost: false },
+  { id: 'peer-b', ...guests[1], isHost: false },
+]
+
+function joinMatch(): void {
+  joinRoomByCode(guests[0], 'AB3XYZ')
+  receive('welcome', { kind: 'telephone', ...host, players: seats }, 'host-peer')
+  receive('tel_start', { players: seats }, 'host-peer')
+}
+
+function finishedChains(): unknown[] {
+  const kinds = ['code', 'explain', 'code']
+  return seats.map((owner, chain) => ({
+    owner: { nickname: owner.nickname, avatarId: owner.avatarId },
+    entries: kinds.map((kind, step) => {
+      const author = seats[(chain + step) % 3]
+      return {
+        author: { nickname: author.nickname, avatarId: author.avatarId },
+        kind,
+        content: kind === 'code' ? snippet : text,
+      }
+    }),
+  }))
+}
+
+describe('telephone match engine as guest', () => {
+  beforeEach(resetFakeRoom)
+  afterEach(cleanUp)
+
+  it('applies steps sent by the host only', () => {
+    joinMatch()
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'peer-b')
+    expect(gameState.get().telephone).toBeNull()
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'host-peer')
+    expect(gameState.get().telephone).toEqual({
+      step: 0,
+      totalSteps: 3,
+      stepKind: 'code',
+      received: null,
+      readyIds: [],
+      localReady: false,
+      chains: null,
+    })
+  })
+
+  it('ignores malformed, mismatched and repeated steps', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    joinMatch()
+    receive('tel_step', { step: 0, total: 4, kind: 'describe', received: null }, 'host-peer')
+    receive('tel_step', { step: 1, total: 3, kind: 'explain', received: text }, 'host-peer')
+    expect(gameState.get().telephone).toBeNull()
+    receive('tel_step', { step: 1, total: 3, kind: 'explain', received: snippet }, 'host-peer')
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'host-peer')
+    expect(gameState.get().telephone).toMatchObject({ step: 1, received: snippet })
+    expect(warn).toHaveBeenCalledTimes(2)
+  })
+
+  it('sends answers to the host and marks itself ready', () => {
+    joinMatch()
+    receive('tel_step', { step: 1, total: 3, kind: 'explain', received: snippet }, 'host-peer')
+    expect(submitStep(`  ${text}  `)).toBe(true)
+    expect(action('tel_submit').send).toHaveBeenCalledWith({ step: 1, answer: { text } }, { target: 'host-peer' })
+    expect(gameState.get().telephone).toMatchObject({ localReady: true, readyIds: ['self-peer'] })
+    expect(submitStep(text)).toBe(false)
+  })
+
+  it('sends code answers as they are', () => {
+    joinMatch()
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'host-peer')
+    submitStep(snippet)
+    expect(action('tel_submit').send).toHaveBeenCalledWith({ step: 0, answer: snippet }, { target: 'host-peer' })
+  })
+
+  it('retracts an answer while the step is open', () => {
+    joinMatch()
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'host-peer')
+    expect(retractStep()).toBe(false)
+    submitStep(snippet)
+    expect(retractStep()).toBe(true)
+    expect(action('tel_retract').send).toHaveBeenCalledWith({ step: 0 }, { target: 'host-peer' })
+    expect(gameState.get().telephone).toMatchObject({ localReady: false, readyIds: [] })
+  })
+
+  it('follows progress from the host and keeps its own ready mark', () => {
+    joinMatch()
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'host-peer')
+    receive('tel_progress', { step: 0, readyIds: ['peer-b'] }, 'host-peer')
+    expect(gameState.get().telephone?.readyIds).toEqual(['peer-b'])
+    submitStep(snippet)
+    receive('tel_progress', { step: 0, readyIds: ['peer-b'] }, 'host-peer')
+    expect(gameState.get().telephone?.readyIds).toEqual(['peer-b', 'self-peer'])
+    receive('tel_progress', { step: 0, readyIds: [] }, 'peer-b')
+    expect(gameState.get().telephone?.readyIds).toEqual(['peer-b', 'self-peer'])
+  })
+
+  it('clears its ready mark when the next step arrives', () => {
+    joinMatch()
+    receive('tel_step', { step: 0, total: 3, kind: 'code', received: null }, 'host-peer')
+    submitStep(snippet)
+    receive('tel_step', { step: 1, total: 3, kind: 'explain', received: snippet }, 'host-peer')
+    expect(gameState.get().telephone).toMatchObject({ step: 1, localReady: false, readyIds: [] })
+  })
+
+  it('moves to the reveal with the chains sent by the host', () => {
+    joinMatch()
+    receive('tel_step', { step: 2, total: 3, kind: 'code', received: text }, 'host-peer')
+    receive('tel_finish', { chains: finishedChains() }, 'host-peer')
+    const { screen, lobby, telephone } = gameState.get()
+    expect(screen).toBe('revelacao')
+    expect(lobby?.stage).toBe('reveal')
+    expect(telephone?.chains).toEqual(finishedChains())
+  })
+
+  it('ignores broken chains', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    joinMatch()
+    receive('tel_step', { step: 2, total: 3, kind: 'code', received: text }, 'host-peer')
+    receive('tel_finish', { chains: finishedChains().slice(0, 2) }, 'host-peer')
+    expect(gameState.get().screen).toBe('etapa')
+    expect(warn).toHaveBeenCalledTimes(1)
   })
 })

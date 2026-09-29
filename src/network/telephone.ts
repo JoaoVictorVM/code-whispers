@@ -3,8 +3,12 @@ import { gameState } from '../state/gameState'
 import type { GameState, LobbyPlayer, StepKind } from '../types/game'
 import { getActiveRoom } from './room'
 import {
+  answerPayload,
   appendStep,
   createChains,
+  parseChains,
+  parseProgress,
+  parseStepMessage,
   stepInput,
   stepKind,
   validateAnswer,
@@ -167,6 +171,62 @@ function handleRetract(data: unknown, peerId: string): void {
   publishProgress()
 }
 
+function isFromHost(state: GameState, peerId: string): boolean {
+  return !isHost(state) && state.room?.kind === 'telephone' && state.lobby?.hostId === peerId
+}
+
+function withSelf(ids: readonly string[], selfId: string, ready: boolean): string[] {
+  const others = ids.filter((id) => id !== selfId)
+  return ready ? [...others, selfId] : others
+}
+
+function handleStep(data: unknown, peerId: string): void {
+  const state = gameState.get()
+  if (!isFromHost(state, peerId) || !isPlaying(state) || !state.lobby) return
+  const message = parseStepMessage(data)
+  if (!message || message.total !== state.lobby.players.length) {
+    console.warn('Code Whispers: etapa malformada ignorada', data)
+    return
+  }
+  if (state.telephone && message.step <= state.telephone.step) return
+  gameState.patch({
+    telephone: {
+      step: message.step,
+      totalSteps: message.total,
+      stepKind: message.kind,
+      received: message.received,
+      readyIds: [],
+      localReady: false,
+      chains: null,
+    },
+  })
+}
+
+function handleProgress(data: unknown, peerId: string): void {
+  const state = gameState.get()
+  const { lobby, telephone } = state
+  if (!isFromHost(state, peerId) || !isPlaying(state) || !lobby || !telephone) return
+  const message = parseProgress(data, telephone.totalSteps)
+  if (!message || message.step !== telephone.step) return
+  gameState.patch({ telephone: { ...telephone, readyIds: withSelf(message.readyIds, lobby.selfId, telephone.localReady) } })
+}
+
+function handleFinish(data: unknown, peerId: string): void {
+  const state = gameState.get()
+  const { lobby, telephone } = state
+  if (!isFromHost(state, peerId) || !isPlaying(state) || !lobby || !telephone) return
+  const chains = parseChains(asRecord(data)?.chains, lobby.players.length)
+  if (!chains) {
+    console.warn('Code Whispers: cadeias malformadas ignoradas', data)
+    return
+  }
+  gameState.patch({
+    screen: 'revelacao',
+    lobby: { ...lobby, stage: 'reveal' },
+    telephone: { ...telephone, readyIds: [], localReady: false, chains },
+  })
+}
+
 function attach(room: Room): void {
   attachedRoom = room
   resetHost()
@@ -182,6 +242,15 @@ function attach(room: Room): void {
   }
   created.retract.onMessage = (data, { peerId }) => {
     if (attachedRoom === room) handleRetract(data, peerId)
+  }
+  created.step.onMessage = (data, { peerId }) => {
+    if (attachedRoom === room) handleStep(data, peerId)
+  }
+  created.progress.onMessage = (data, { peerId }) => {
+    if (attachedRoom === room) handleProgress(data, peerId)
+  }
+  created.finish.onMessage = (data, { peerId }) => {
+    if (attachedRoom === room) handleFinish(data, peerId)
   }
   actions = created
 }
@@ -225,7 +294,14 @@ export function submitStep(content: StepContent): boolean {
     recordAnswer(seatOf(lobby.players, lobby.selfId), validation.value)
     return true
   }
-  return false
+  if (!actions) return false
+  actions.submit
+    .send({ step: telephone.step, answer: answerPayload(validation.value) }, { target: lobby.hostId })
+    .catch(() => undefined)
+  gameState.patch({
+    telephone: { ...telephone, localReady: true, readyIds: withSelf(telephone.readyIds, lobby.selfId, true) },
+  })
+  return true
 }
 
 export function retractStep(): boolean {
@@ -239,7 +315,12 @@ export function retractStep(): boolean {
     publishProgress()
     return true
   }
-  return false
+  if (!actions) return false
+  actions.retract.send({ step: telephone.step }, { target: lobby.hostId }).catch(() => undefined)
+  gameState.patch({
+    telephone: { ...telephone, localReady: false, readyIds: withSelf(telephone.readyIds, lobby.selfId, false) },
+  })
+  return true
 }
 
 startTelephone()
