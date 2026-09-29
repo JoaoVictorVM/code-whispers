@@ -31,6 +31,7 @@ vi.mock('trystero/nostr', () => ({
 const {
   hostRoom,
   hostTelephoneRoom,
+  startTelephoneMatch,
   joinRoomByCode,
   leaveRoom,
   getActiveRoom,
@@ -284,6 +285,8 @@ const telephonePlayers = [
   { id: 'self-peer', ...guest, isHost: false },
 ]
 
+const threeSeats = [...telephonePlayers, { id: 'peer-b', nickname: 'Gui', avatarId: 3, isHost: false }]
+
 describe('telephone room', () => {
   beforeEach(resetFakeTrystero)
 
@@ -429,6 +432,41 @@ describe('telephone room', () => {
       type: 'in-progress',
       message: 'Essa partida já começou. Espere o grupo voltar para a sala de espera.',
     })
+  })
+
+  it('host starts only with at least three players and locks the room', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    expect(startTelephoneMatch()).toBe(false)
+    expect(lastRoom().actions.tel_start.send).not.toHaveBeenCalled()
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    expect(startTelephoneMatch()).toBe(true)
+    const { screen, lobby } = gameState.get()
+    expect(screen).toBe('etapa')
+    expect(lobby?.stage).toBe('playing')
+    expect(lastRoom().actions.tel_start.send).toHaveBeenCalledWith({ players: lobby?.players })
+    expect(startTelephoneMatch()).toBe(false)
+    receive('hello', { nickname: 'Breno', avatarId: 5 }, 'peer-c')
+    expect(lastRoom().actions.in_progress.send).toHaveBeenCalledWith({}, { target: 'peer-c' })
+  })
+
+  it('guests cannot start the match', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: threeSeats }, 'host-peer')
+    expect(startTelephoneMatch()).toBe(false)
+    expect(gameState.get().lobby?.stage).toBe('lobby')
+  })
+
+  it('guest follows the start broadcast from the host', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: threeSeats }, 'host-peer')
+    receive('tel_start', { players: threeSeats }, 'peer-b')
+    expect(gameState.get().screen).toBe('sala')
+    receive('tel_start', { players: telephonePlayers }, 'host-peer')
+    expect(gameState.get().screen).toBe('sala')
+    receive('tel_start', { players: threeSeats }, 'host-peer')
+    expect(gameState.get().screen).toBe('etapa')
+    expect(gameState.get().lobby).toMatchObject({ stage: 'playing', players: threeSeats })
   })
 
   it('leaving the waiting room clears the lobby', () => {

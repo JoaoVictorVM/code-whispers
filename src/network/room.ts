@@ -8,7 +8,7 @@ import type {
   PlayerProfile,
   RoomRole,
 } from '../types/game'
-import { TELEPHONE_MAX_PLAYERS, addPlayer, isFull, parsePlayers } from './lobbyProtocol'
+import { TELEPHONE_MAX_PLAYERS, addPlayer, canStart, isFull, parsePlayers } from './lobbyProtocol'
 import { generateRoomCode, normalizeRoomCode } from './roomCode'
 
 export const APP_ID = 'code-whispers'
@@ -49,9 +49,11 @@ interface Handshake {
   roomFull: MessageAction<RoomFullPayload>
   inProgress: MessageAction<EmptyPayload>
   telLobby: MessageAction<PlayersPayload>
+  telStart: MessageAction<PlayersPayload>
 }
 
 let activeRoom: Room | null = null
+let activeHandshake: Handshake | null = null
 let opponentPeerId: string | null = null
 let session = 0
 const timers = new Set<ReturnType<typeof setTimeout>>()
@@ -81,6 +83,7 @@ function teardown(): void {
   session += 1
   clearTimers()
   opponentPeerId = null
+  activeHandshake = null
   const room = activeRoom
   activeRoom = null
   if (room) {
@@ -166,7 +169,9 @@ function openRoom(code: string, currentSession: number): { room: Room; handshake
     roomFull: room.makeAction<RoomFullPayload>('room_full'),
     inProgress: room.makeAction<EmptyPayload>('in_progress'),
     telLobby: room.makeAction<PlayersPayload>('tel_lobby'),
+    telStart: room.makeAction<PlayersPayload>('tel_start'),
   }
+  activeHandshake = handshake
   room.onPeerLeave = (peerId) => {
     if (currentSession !== session || peerId !== opponentPeerId) return
     gameState.patch({ connection: { status: 'disconnected', error: null } })
@@ -317,6 +322,23 @@ function seatGuest(handshake: Handshake, profile: PlayerProfile, data: unknown, 
   handshake.telLobby.send({ players }).catch(() => undefined)
 }
 
+export function startTelephoneMatch(): boolean {
+  const { room, lobby } = gameState.get()
+  if (!activeHandshake || room?.kind !== 'telephone' || room.role !== 'host') return false
+  if (!lobby || lobby.stage !== 'lobby' || !canStart(lobby.players)) return false
+  activeHandshake.telStart.send({ players: lobby.players }).catch(() => undefined)
+  gameState.patch({ screen: 'etapa', lobby: { ...lobby, stage: 'playing' } })
+  return true
+}
+
+function applyMatchStart(data: unknown): void {
+  const lobby = gameState.get().lobby
+  const players = parsePlayers(typeof data === 'object' && data !== null ? (data as Record<string, unknown>).players : null)
+  if (!lobby || lobby.stage !== 'lobby' || !players || !canStart(players)) return
+  if (players[0].id !== lobby.hostId || !players.some((player) => player.id === lobby.selfId)) return
+  gameState.patch({ screen: 'etapa', lobby: { ...lobby, players, stage: 'playing' } })
+}
+
 export function getSelfId(): string {
   return selfId
 }
@@ -373,6 +395,10 @@ export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
 
   handshake.telLobby.onMessage = (data, { peerId }) => {
     if (currentSession === session && isFromTelephoneHost(peerId)) applyLobbyList(data)
+  }
+
+  handshake.telStart.onMessage = (data, { peerId }) => {
+    if (currentSession === session && isFromTelephoneHost(peerId)) applyMatchStart(data)
   }
 
   schedule(() => {
