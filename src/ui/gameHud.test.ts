@@ -9,7 +9,7 @@ describe('gameHud', () => {
     gameState.reset()
     gameState.patch({
       round: 2,
-      room: { code: 'AB3XYZ', role: 'host', mode: 5 },
+      room: { code: 'AB3XYZ', role: 'host', kind: 'duel', mode: 5 },
       localPlayer: { nickname: 'Bia', avatarId: 1 },
       remotePlayer: { nickname: 'Ana', avatarId: 6 },
     })

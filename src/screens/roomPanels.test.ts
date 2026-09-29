@@ -23,6 +23,7 @@ const trystero = vi.hoisted(() => ({
 vi.mock('trystero/nostr', () => ({
   joinRoom: trystero.joinRoom,
   getRelaySockets: trystero.getRelaySockets,
+  selfId: 'self-peer',
 }))
 
 const { default: inicio } = await import('./inicio')
@@ -219,6 +220,55 @@ describe('room panels on the start screen', () => {
     lastRoom().actions.room_full.onMessage?.({}, { peerId: 'host' })
     expect(query('guest-error').textContent).toBe('Sala cheia — essa sala já tem 2 jogadores.')
     expect(query<HTMLInputElement>('room-code-input').value).toBe('AB3XYZ')
+  })
+
+  it('shows the rounds only while the duel is selected', () => {
+    mountWithProfile()
+    const kindSelect = query<HTMLSelectElement>('kind-select')
+    const rounds = query('mode-chips').closest('label')!
+    expect(kindSelect.value).toBe('duel')
+    expect(rounds.hidden).toBe(false)
+    root.querySelector<HTMLButtonElement>('[data-kind="telephone"]')!.click()
+    expect(kindSelect.value).toBe('telephone')
+    expect(rounds.hidden).toBe(true)
+    expect(root.querySelector('[data-kind="telephone"]')?.getAttribute('aria-pressed')).toBe('true')
+    root.querySelector<HTMLButtonElement>('[data-kind="duel"]')!.click()
+    expect(rounds.hidden).toBe(false)
+  })
+
+  it('creates a telephone room when that kind is selected', () => {
+    mountWithProfile()
+    root.querySelector<HTMLButtonElement>('[data-kind="telephone"]')!.click()
+    query<HTMLButtonElement>('create-room').click()
+    const { screen, room, lobby } = gameState.get()
+    expect(screen).toBe('sala')
+    expect(room?.kind).toBe('telephone')
+    expect(lobby?.players).toEqual([{ id: 'self-peer', nickname: 'Bruna', avatarId: 1, isHost: true }])
+  })
+
+  it('creates a duel room with the chosen rounds by default', () => {
+    mountWithProfile()
+    query<HTMLSelectElement>('mode-select').value = '7'
+    query<HTMLButtonElement>('create-room').click()
+    expect(gameState.get().room).toMatchObject({ kind: 'duel', mode: 7 })
+  })
+
+  it('shows the match in progress message under the join panel', () => {
+    mountWithProfile()
+    typeInto(query<HTMLInputElement>('room-code-input'), 'AB3XYZ')
+    query<HTMLButtonElement>('join-room').click()
+    lastRoom().actions.in_progress.onMessage?.({}, { peerId: 'host' })
+    expect(query('guest-error').textContent).toBe(
+      'Essa partida já começou. Espere o grupo voltar para a sala de espera.',
+    )
+  })
+
+  it('shows the telephone full room message under the join panel', () => {
+    mountWithProfile()
+    typeInto(query<HTMLInputElement>('room-code-input'), 'AB3XYZ')
+    query<HTMLButtonElement>('join-room').click()
+    lastRoom().actions.room_full.onMessage?.({ capacity: 8 }, { peerId: 'host' })
+    expect(query('guest-error').textContent).toBe('Sala cheia: essa sala já tem 8 jogadores.')
   })
 
   it('test_signaling_unreachable_message_reenables_button', () => {

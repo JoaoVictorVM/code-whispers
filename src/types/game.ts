@@ -1,4 +1,4 @@
-export type ScreenId = 'inicio' | 'code' | 'explica' | 'revisa' | 'final'
+export type ScreenId = 'inicio' | 'code' | 'explica' | 'revisa' | 'final' | 'sala' | 'etapa'
 
 export type GamePhase = 'code' | 'explain' | 'review' | 'summary'
 
@@ -53,15 +53,18 @@ export interface Tallies {
 
 export type RoomRole = 'host' | 'guest'
 
+export type RoomKind = 'duel' | 'telephone'
+
 export interface RoomSession {
   code: string
   role: RoomRole
+  kind: RoomKind
   mode: MatchMode
 }
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected'
 
-export type ConnectionErrorType = 'not-found' | 'room-full' | 'clipboard' | 'signaling'
+export type ConnectionErrorType = 'not-found' | 'room-full' | 'clipboard' | 'signaling' | 'in-progress'
 
 export interface ConnectionError {
   type: ConnectionErrorType
@@ -73,11 +76,27 @@ export interface ConnectionState {
   error: ConnectionError | null
 }
 
+export interface LobbyPlayer extends PlayerProfile {
+  id: string
+  isHost: boolean
+}
+
+export type LobbyStage = 'lobby' | 'playing' | 'reveal'
+
+export interface LobbyState {
+  selfId: string
+  hostId: string
+  players: LobbyPlayer[]
+  stage: LobbyStage
+  departedNickname: string | null
+}
+
 export interface GameState {
   screen: ScreenId
   localPlayer: PlayerProfile | null
   remotePlayer: PlayerProfile | null
   room: RoomSession | null
+  lobby: LobbyState | null
   connection: ConnectionState
   mode: MatchMode
   round: number

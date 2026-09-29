@@ -34,7 +34,7 @@ describe('review screen', () => {
       screen: 'revisa',
       phase: 'review',
       round: 1,
-      room: { code: 'AB3XYZ', role: 'host', mode: 3 },
+      room: { code: 'AB3XYZ', role: 'host', kind: 'duel', mode: 3 },
       remotePlayer: { nickname: 'Ana', avatarId: 2 },
       connection: { status: 'connected', error: null },
     })

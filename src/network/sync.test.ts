@@ -23,10 +23,11 @@ const trystero = vi.hoisted(() => ({
 vi.mock('trystero/nostr', () => ({
   joinRoom: trystero.joinRoom,
   getRelaySockets: trystero.getRelaySockets,
+  selfId: 'self-peer',
 }))
 
 const { gameState } = await import('../state/gameState')
-const { hostRoom, joinRoomByCode, leaveRoom, getActiveRoom } = await import('./room')
+const { hostRoom, hostTelephoneRoom, joinRoomByCode, leaveRoom, getActiveRoom } = await import('./room')
 const { ready, unready, rematch, startSync, stopSync, getTotalRounds } = await import('./sync')
 const { roundsForMode } = await import('./syncProtocol')
 
@@ -96,6 +97,14 @@ describe('match synchronization', () => {
     stopSync()
     leaveRoom()
     vi.restoreAllMocks()
+  })
+
+  it('does not attach to telephone rooms', () => {
+    hostTelephoneRoom(host)
+    expect(gameState.get().connection.status).toBe('connected')
+    expect(room().actions.ready).toBeUndefined()
+    expect(room().actions.unready).toBeUndefined()
+    expect(room().actions.rematch).toBeUndefined()
   })
 
   it('test_starts_match_on_connection_connected', () => {
