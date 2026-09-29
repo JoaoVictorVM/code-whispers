@@ -1,4 +1,4 @@
-import { getRelaySockets, joinRoom, type MessageAction, type Room } from 'trystero/nostr'
+import { getRelaySockets, joinRoom, selfId, type MessageAction, type Room } from 'trystero/nostr'
 import { createMatchState, gameState } from '../state/gameState'
 import { AVATAR_IDS, validateNickname } from '../state/profile'
 import type {
@@ -104,6 +104,7 @@ function fail(type: ConnectionErrorType): void {
   gameState.patch({
     room: null,
     remotePlayer: null,
+    lobby: null,
     connection: { status: 'idle', error: { type, message: CONNECTION_ERROR_MESSAGES[type] } },
   })
 }
@@ -153,6 +154,7 @@ export function hostRoom(profile: PlayerProfile, mode: MatchMode): void {
   gameState.patch({
     room: null,
     remotePlayer: null,
+    lobby: null,
     connection: { status: 'connecting', error: null },
   })
 
@@ -179,10 +181,12 @@ export function hostRoom(profile: PlayerProfile, mode: MatchMode): void {
     acceptOpponent(peerId, remotePlayer, 'host', code, mode)
   }
 
-  const publishRoom = () => gameState.patch({ room: { code, role: 'host', kind: 'duel', mode }, mode })
+  whenRelayReady(currentSession, () => gameState.patch({ room: { code, role: 'host', kind: 'duel', mode }, mode }))
+}
 
+function whenRelayReady(currentSession: number, onReady: () => void): void {
   if (hasOpenRelay()) {
-    publishRoom()
+    onReady()
     return
   }
 
@@ -190,7 +194,7 @@ export function hostRoom(profile: PlayerProfile, mode: MatchMode): void {
   const waitForRelay = () => {
     if (currentSession !== session) return
     if (hasOpenRelay()) {
-      publishRoom()
+      onReady()
     } else if (Date.now() - startedAt >= SIGNALING_TIMEOUT_MS) {
       fail('signaling')
     } else {
@@ -198,6 +202,46 @@ export function hostRoom(profile: PlayerProfile, mode: MatchMode): void {
     }
   }
   schedule(waitForRelay, SIGNALING_POLL_MS)
+}
+
+export function hostTelephoneRoom(profile: PlayerProfile): void {
+  teardown()
+  const currentSession = session
+  const code = generateRoomCode()
+  gameState.patch({
+    room: null,
+    remotePlayer: null,
+    lobby: null,
+    connection: { status: 'connecting', error: null },
+  })
+
+  try {
+    openRoom(code, currentSession)
+  } catch {
+    fail('signaling')
+    return
+  }
+
+  whenRelayReady(currentSession, () => {
+    gameState.patch({
+      ...matchStartState(),
+      screen: 'sala',
+      room: { code, role: 'host', kind: 'telephone', mode: gameState.get().mode },
+      remotePlayer: null,
+      lobby: {
+        selfId,
+        hostId: selfId,
+        players: [{ id: selfId, nickname: profile.nickname, avatarId: profile.avatarId, isHost: true }],
+        stage: 'lobby',
+        departedNickname: null,
+      },
+      connection: { status: 'connected', error: null },
+    })
+  })
+}
+
+export function getSelfId(): string {
+  return selfId
 }
 
 export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
@@ -208,6 +252,7 @@ export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
   gameState.patch({
     room: null,
     remotePlayer: null,
+    lobby: null,
     connection: { status: 'connecting', error: null },
   })
 
@@ -252,6 +297,7 @@ export function leaveRoom(): void {
     screen: gameState.get().screen,
     room: null,
     remotePlayer: null,
+    lobby: null,
     connection: { status: 'idle', error: null },
   })
 }

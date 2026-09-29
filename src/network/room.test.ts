@@ -25,10 +25,12 @@ const trystero = vi.hoisted(() => ({
 vi.mock('trystero/nostr', () => ({
   joinRoom: trystero.joinRoom,
   getRelaySockets: trystero.getRelaySockets,
+  selfId: 'self-peer',
 }))
 
 const {
   hostRoom,
+  hostTelephoneRoom,
   joinRoomByCode,
   leaveRoom,
   getActiveRoom,
@@ -64,21 +66,23 @@ function receive(action: string, data: unknown, peerId: string): void {
 const host: PlayerProfile = { nickname: 'João', avatarId: 1 }
 const guest: PlayerProfile = { nickname: 'Maria', avatarId: 4 }
 
-describe('room lifecycle', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    gameState.reset()
-    trystero.rooms.length = 0
-    trystero.relayOpen = true
-    trystero.joinRoom.mockReset().mockImplementation(() => {
-      const room = createFakeRoom()
-      trystero.rooms.push(room)
-      return room
-    })
-    trystero.getRelaySockets.mockReset().mockImplementation(() => ({
-      'wss://relay': { readyState: trystero.relayOpen ? WebSocket.OPEN : WebSocket.CONNECTING },
-    }))
+function resetFakeTrystero(): void {
+  vi.useFakeTimers()
+  gameState.reset()
+  trystero.rooms.length = 0
+  trystero.relayOpen = true
+  trystero.joinRoom.mockReset().mockImplementation(() => {
+    const room = createFakeRoom()
+    trystero.rooms.push(room)
+    return room
   })
+  trystero.getRelaySockets.mockReset().mockImplementation(() => ({
+    'wss://relay': { readyState: trystero.relayOpen ? WebSocket.OPEN : WebSocket.CONNECTING },
+  }))
+}
+
+describe('room lifecycle', () => {
+  beforeEach(resetFakeTrystero)
 
   afterEach(() => {
     leaveRoom()
@@ -272,5 +276,51 @@ describe('room lifecycle', () => {
     expect(localPlayer).toEqual(host)
     expect(remotePlayer).toEqual(guest)
     expect(room?.mode).toBe(7)
+  })
+})
+
+describe('telephone room', () => {
+  beforeEach(resetFakeTrystero)
+
+  afterEach(() => {
+    leaveRoom()
+    vi.useRealTimers()
+  })
+
+  it('host opens the waiting room once a relay is ready', () => {
+    trystero.relayOpen = false
+    hostTelephoneRoom(host)
+    expect(gameState.get().screen).toBe('inicio')
+    expect(gameState.get().connection.status).toBe('connecting')
+    trystero.relayOpen = true
+    vi.advanceTimersByTime(300)
+    const { screen, room, lobby, connection } = gameState.get()
+    expect(screen).toBe('sala')
+    expect(room).toMatchObject({ role: 'host', kind: 'telephone' })
+    expect(room?.code).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/)
+    expect(lobby).toEqual({
+      selfId: 'self-peer',
+      hostId: 'self-peer',
+      players: [{ id: 'self-peer', ...host, isHost: true }],
+      stage: 'lobby',
+      departedNickname: null,
+    })
+    expect(connection).toEqual({ status: 'connected', error: null })
+  })
+
+  it('host reports a signaling error when no relay connects in time', () => {
+    trystero.relayOpen = false
+    hostTelephoneRoom(host)
+    vi.advanceTimersByTime(SIGNALING_TIMEOUT_MS + 500)
+    expect(gameState.get().connection.error?.type).toBe('signaling')
+    expect(gameState.get().lobby).toBeNull()
+  })
+
+  it('leaving the waiting room clears the lobby', () => {
+    hostTelephoneRoom(host)
+    leaveRoom()
+    expect(gameState.get().lobby).toBeNull()
+    expect(gameState.get().room).toBeNull()
+    expect(lastRoom().leave).toHaveBeenCalled()
   })
 })
