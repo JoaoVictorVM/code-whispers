@@ -1,9 +1,9 @@
 import { play } from '../audio/sfx'
-import { hostRoom, joinRoomByCode, leaveRoom } from '../network/room'
+import { hostRoom, hostTelephoneRoom, joinRoomByCode, leaveRoom } from '../network/room'
 import { ROOM_CODE_LENGTH, normalizeRoomCode, sanitizeRoomCodeInput } from '../network/roomCode'
 import { gameState } from '../state/gameState'
 import { NICKNAME_RULE_MESSAGE } from '../state/profile'
-import type { GameState, MatchMode } from '../types/game'
+import type { GameState, MatchMode, RoomKind } from '../types/game'
 import { canAnimate, gsap } from '../ui/motion'
 import { createRoomCodeDisplay } from '../ui/roomCodeDisplay'
 
@@ -11,6 +11,11 @@ export const MODE_OPTIONS: readonly { value: MatchMode; label: string }[] = [
   { value: 3, label: 'Rápida (3)' },
   { value: 5, label: 'Média (5)' },
   { value: 7, label: 'Maior (7)' },
+]
+
+export const KIND_OPTIONS: readonly { value: RoomKind; title: string; detail: string }[] = [
+  { value: 'duel', title: 'Duelo', detail: '2 jogadores' },
+  { value: 'telephone', title: 'Telefone sem fio', detail: '3 a 8 jogadores' },
 ]
 
 export { COPIED_FEEDBACK_MS } from '../ui/roomCodeDisplay'
@@ -65,6 +70,35 @@ export function createRoomPanels(): RoomPanels {
   const hostTitle = element('h2', 'font-display text-2xl', 'Criar sala')
 
   const hostForm = element('div', 'flex flex-col gap-4')
+  const kindLabelElement = element('label', 'flex flex-col gap-1.5 text-sm font-extrabold uppercase tracking-wider', 'Tipo de partida')
+  const kindSelect = element('select', 'sr-only')
+  kindSelect.dataset.role = 'kind-select'
+  for (const option of KIND_OPTIONS) {
+    const optionElement = element('option', '', `${option.title} (${option.detail})`)
+    optionElement.value = option.value
+    kindSelect.append(optionElement)
+  }
+  const kindChips = element('div', 'grid grid-cols-2 gap-2')
+  kindChips.dataset.role = 'kind-chips'
+  kindChips.setAttribute('aria-hidden', 'true')
+  const kindButtons = KIND_OPTIONS.map((option) => {
+    const chip = element('button', 'btn-chunky flex-col gap-0.5 px-2 py-2 text-ink')
+    chip.type = 'button'
+    chip.tabIndex = -1
+    chip.dataset.kind = option.value
+    chip.append(
+      element('span', 'font-display text-lg leading-tight', option.title),
+      element('span', 'text-xs font-extrabold uppercase', option.detail),
+    )
+    chip.addEventListener('click', () => {
+      if (kindSelect.disabled || kindSelect.value === chip.dataset.kind) return
+      kindSelect.value = chip.dataset.kind!
+      kindSelect.dispatchEvent(new Event('change'))
+    })
+    kindChips.append(chip)
+    return chip
+  })
+  kindLabelElement.append(kindSelect, kindChips)
   const modeLabelElement = element('label', 'flex flex-col gap-1.5 text-sm font-extrabold uppercase tracking-wider', 'Modo')
   const modeSelect = element('select', 'sr-only')
   modeSelect.dataset.role = 'mode-select'
@@ -98,7 +132,7 @@ export function createRoomPanels(): RoomPanels {
   const hostError = element('p', 'text-sm font-bold text-cherry')
   hostError.dataset.role = 'host-error'
   hostError.setAttribute('role', 'alert')
-  hostForm.append(modeLabelElement, createButton, hostError)
+  hostForm.append(kindLabelElement, modeLabelElement, createButton, hostError)
 
   const hostWaiting = element('div', 'flex flex-col items-center gap-4 text-center')
   const codeDisplay = createRoomCodeDisplay()
@@ -153,6 +187,15 @@ export function createRoomPanels(): RoomPanels {
 
     hostForm.hidden = hosting
     hostWaiting.hidden = !hosting
+    kindSelect.disabled = busy
+    for (const chip of kindButtons) {
+      const active = chip.dataset.kind === kindSelect.value
+      chip.disabled = busy
+      chip.classList.toggle('bg-bubblegum', active)
+      chip.classList.toggle('bg-paper', !active)
+      chip.setAttribute('aria-pressed', String(active))
+    }
+    modeLabelElement.hidden = kindSelect.value !== 'duel'
     modeSelect.disabled = busy
     for (const chip of chipButtons) {
       const active = chip.dataset.mode === modeSelect.value
@@ -182,7 +225,7 @@ export function createRoomPanels(): RoomPanels {
     hostError.textContent = errorType === 'signaling' ? connection.error!.message : ''
     hostError.hidden = !hostError.textContent
     guestError.textContent =
-      errorType === 'not-found' || errorType === 'room-full' ? connection.error!.message : ''
+      errorType === 'not-found' || errorType === 'room-full' || errorType === 'in-progress' ? connection.error!.message : ''
     guestError.hidden = !guestError.textContent
 
     if (connection.error && connection.error !== lastError) {
@@ -202,7 +245,8 @@ export function createRoomPanels(): RoomPanels {
     if (!profile) return
     pending = 'host'
     play('tap')
-    hostRoom(profile, Number(modeSelect.value) as MatchMode)
+    if (kindSelect.value === 'telephone') hostTelephoneRoom(profile)
+    else hostRoom(profile, Number(modeSelect.value) as MatchMode)
   })
 
   joinButton.addEventListener('click', () => {
@@ -211,6 +255,13 @@ export function createRoomPanels(): RoomPanels {
     pending = 'guest'
     play('tap')
     joinRoomByCode(profile, codeInput.value)
+  })
+
+  kindSelect.addEventListener('change', () => {
+    play('select')
+    render(gameState.get())
+    const chip = kindButtons.find((candidate) => candidate.dataset.kind === kindSelect.value)
+    if (animated && chip) gsap.fromTo(chip, { scale: 0.88 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1.3, 0.4)' })
   })
 
   modeSelect.addEventListener('change', () => {
