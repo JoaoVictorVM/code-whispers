@@ -529,6 +529,19 @@ describe('telephone room', () => {
     expect(gameState.get().lobby?.departedNickname).toBe('João')
   })
 
+  it('starting or leaving a telephone room clears the step state', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    const leftover = { step: 2, totalSteps: 3, stepKind: 'code' as const, received: null, readyIds: [], localReady: true, chains: null }
+    gameState.patch({ telephone: leftover })
+    startTelephoneMatch()
+    expect(gameState.get().telephone).toBeNull()
+    gameState.patch({ telephone: leftover })
+    leaveRoom()
+    expect(gameState.get().telephone).toBeNull()
+  })
+
   it('leaving the waiting room clears the lobby', () => {
     hostTelephoneRoom(host)
     leaveRoom()
