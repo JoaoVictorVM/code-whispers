@@ -74,7 +74,7 @@ function mount(root: HTMLElement): void {
 
   container = document.createElement('section')
   container.dataset.screen = 'sala'
-  container.className = 'container flex flex-col items-center gap-5 py-6'
+  container.className = 'container flex flex-col items-center gap-5 pt-20 pb-6 sm:pt-6'
 
   const heading = document.createElement('h1')
   heading.className = 'display-title text-center text-4xl sm:text-5xl'
