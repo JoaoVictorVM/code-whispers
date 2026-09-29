@@ -76,11 +76,27 @@ export interface ConnectionState {
   error: ConnectionError | null
 }
 
+export interface LobbyPlayer extends PlayerProfile {
+  id: string
+  isHost: boolean
+}
+
+export type LobbyStage = 'lobby' | 'playing' | 'reveal'
+
+export interface LobbyState {
+  selfId: string
+  hostId: string
+  players: LobbyPlayer[]
+  stage: LobbyStage
+  departedNickname: string | null
+}
+
 export interface GameState {
   screen: ScreenId
   localPlayer: PlayerProfile | null
   remotePlayer: PlayerProfile | null
   room: RoomSession | null
+  lobby: LobbyState | null
   connection: ConnectionState
   mode: MatchMode
   round: number

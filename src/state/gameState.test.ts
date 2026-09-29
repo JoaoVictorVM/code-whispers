@@ -43,6 +43,7 @@ describe('gameState', () => {
     expect(initial.localPlayer).toBeNull()
     expect(initial.remotePlayer).toBeNull()
     expect(initial.room).toBeNull()
+    expect(initial.lobby).toBeNull()
     expect(initial.connection).toEqual({ status: 'idle', error: null })
     expect(initial.mode).toBe(3)
     expect(initial.round).toBe(1)

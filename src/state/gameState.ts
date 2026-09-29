@@ -27,6 +27,7 @@ function createInitialState(): GameState {
     localPlayer: null,
     remotePlayer: null,
     room: null,
+    lobby: null,
     connection: { status: 'idle', error: null },
     mode: 3,
     ...createMatchState(),
