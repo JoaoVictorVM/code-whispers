@@ -36,7 +36,7 @@ describe('match summary screen', () => {
       phase: 'summary',
       round: 5,
       mode: 5,
-      room: { code: 'AB3XYZ', role: 'host', mode: 5 },
+      room: { code: 'AB3XYZ', role: 'host', kind: 'duel', mode: 5 },
       localPlayer: local,
       remotePlayer: remote,
       connection: { status: 'connected', error: null },
@@ -68,7 +68,7 @@ describe('match summary screen', () => {
       [3, 'Rápida'],
       [7, 'Maior'],
     ] as const) {
-      gameState.patch({ room: { code: 'AB3XYZ', role: 'guest', mode } })
+      gameState.patch({ room: { code: 'AB3XYZ', role: 'guest', kind: 'duel', mode } })
       final.mount(root)
       expect(root.querySelector('h1')?.textContent).toBe(`Fim de jogo — ${name}, ${mode} rodadas`)
       final.unmount()

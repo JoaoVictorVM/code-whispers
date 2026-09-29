@@ -31,7 +31,7 @@ export const CONNECTION_ERROR_MESSAGES: Record<ConnectionErrorType, string> = {
 }
 
 type HelloPayload = { nickname: string; avatarId: number }
-type WelcomePayload = HelloPayload & { mode: MatchMode }
+type WelcomePayload = HelloPayload & { kind: 'duel'; mode: MatchMode }
 type EmptyPayload = Record<string, never>
 
 interface Handshake {
@@ -139,7 +139,7 @@ function acceptOpponent(
   clearTimers()
   gameState.patch({
     ...matchStartState(),
-    room: { code, role, mode },
+    room: { code, role, kind: 'duel', mode },
     mode,
     remotePlayer,
     connection: { status: 'connected', error: null },
@@ -173,13 +173,13 @@ export function hostRoom(profile: PlayerProfile, mode: MatchMode): void {
     const remotePlayer = parseProfile(data)
     if (!remotePlayer) return
     handshake.welcome
-      .send({ nickname: profile.nickname, avatarId: profile.avatarId, mode }, { target: peerId })
+      .send({ nickname: profile.nickname, avatarId: profile.avatarId, kind: 'duel', mode }, { target: peerId })
       .catch(() => undefined)
     if (opponentPeerId === peerId) return
     acceptOpponent(peerId, remotePlayer, 'host', code, mode)
   }
 
-  const publishRoom = () => gameState.patch({ room: { code, role: 'host', mode }, mode })
+  const publishRoom = () => gameState.patch({ room: { code, role: 'host', kind: 'duel', mode }, mode })
 
   if (hasOpenRelay()) {
     publishRoom()

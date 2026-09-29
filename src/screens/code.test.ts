@@ -36,7 +36,7 @@ describe('code writing screen', () => {
     gameState.reset()
     gameState.patch({
       screen: 'code',
-      room: { code: 'AB3XYZ', role: 'host', mode: 3 },
+      room: { code: 'AB3XYZ', role: 'host', kind: 'duel', mode: 3 },
       remotePlayer: { nickname: 'Ana', avatarId: 2 },
       connection: { status: 'connected', error: null },
     })
@@ -57,7 +57,7 @@ describe('code writing screen', () => {
   })
 
   it('test_renders_round_and_phase_header', () => {
-    gameState.patch({ round: 2, room: { code: 'AB3XYZ', role: 'host', mode: 5 } })
+    gameState.patch({ round: 2, room: { code: 'AB3XYZ', role: 'host', kind: 'duel', mode: 5 } })
     codeScreen.mount(root)
     expect(root.querySelector('h1')?.textContent).toBe('Rodada 2 de 5 · Escrever')
     expect(query('instruction').textContent).toBe('Escreva ou cole um trecho de código para Ana explicar.')
@@ -65,7 +65,7 @@ describe('code writing screen', () => {
 
   it('shows the right total in every mode', () => {
     for (const mode of [3, 5, 7] as const) {
-      gameState.patch({ room: { code: 'AB3XYZ', role: 'guest', mode } })
+      gameState.patch({ room: { code: 'AB3XYZ', role: 'guest', kind: 'duel', mode } })
       codeScreen.mount(root)
       expect(root.querySelector('h1')?.textContent).toBe(`Rodada 1 de ${mode} · Escrever`)
       codeScreen.unmount()

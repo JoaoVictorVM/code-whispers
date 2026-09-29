@@ -40,7 +40,7 @@ describe('explanation screen', () => {
       screen: 'explica',
       phase: 'explain',
       round: 2,
-      room: { code: 'AB3XYZ', role: 'guest', mode: 5 },
+      room: { code: 'AB3XYZ', role: 'guest', kind: 'duel', mode: 5 },
       remotePlayer: { nickname: 'Ana', avatarId: 2 },
       connection: { status: 'connected', error: null },
       submissions: { 2: { remoteCode: opponentSnippet } },

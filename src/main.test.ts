@@ -77,7 +77,7 @@ describe('screen router', () => {
     gameState.patch({
       screen: 'revisa',
       round: 3,
-      room: { code: 'AB3XYZ', role: 'host', mode: 5 },
+      room: { code: 'AB3XYZ', role: 'host', kind: 'duel', mode: 5 },
       remotePlayer: { nickname: 'Ana', avatarId: 2 },
       connection: { status: 'disconnected', error: null },
     })

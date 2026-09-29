@@ -53,9 +53,12 @@ export interface Tallies {
 
 export type RoomRole = 'host' | 'guest'
 
+export type RoomKind = 'duel' | 'telephone'
+
 export interface RoomSession {
   code: string
   role: RoomRole
+  kind: RoomKind
   mode: MatchMode
 }
 

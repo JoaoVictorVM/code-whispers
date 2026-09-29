@@ -102,7 +102,7 @@ describe('room lifecycle', () => {
     hostRoom(host, 5)
     receive('hello', guest, 'peer-a')
     expect(lastRoom().actions.welcome.send).toHaveBeenCalledWith(
-      { nickname: 'João', avatarId: 1, mode: 5 },
+      { nickname: 'João', avatarId: 1, kind: 'duel', mode: 5 },
       { target: 'peer-a' },
     )
     const state = gameState.get()
@@ -182,7 +182,7 @@ describe('room lifecycle', () => {
     joinRoomByCode(guest, 'AB3XYZ')
     receive('welcome', { ...host, mode: 7 }, 'host-peer')
     const state = gameState.get()
-    expect(state.room).toEqual({ code: 'AB3XYZ', role: 'guest', mode: 7 })
+    expect(state.room).toEqual({ code: 'AB3XYZ', role: 'guest', kind: 'duel', mode: 7 })
     expect(state.mode).toBe(7)
     expect(state.remotePlayer).toEqual(host)
     expect(state.connection.status).toBe('connected')
@@ -253,13 +253,13 @@ describe('room lifecycle', () => {
     leaveRoom()
     hostRoom(profile, 3)
     receive('hello', guest, 'peer-a')
-    expect(lastRoom().actions.welcome.send).toHaveBeenCalledWith({ ...profile, mode: 3 }, { target: 'peer-a' })
+    expect(lastRoom().actions.welcome.send).toHaveBeenCalledWith({ ...profile, kind: 'duel', mode: 3 }, { target: 'peer-a' })
   })
 
   it('test_room_session_and_handle_available_for_match_sync', () => {
     joinRoomByCode(guest, 'AB3XYZ')
     receive('welcome', { ...host, mode: 5 }, 'host-peer')
-    expect(gameState.get().room).toStrictEqual({ code: 'AB3XYZ', role: 'guest', mode: 5 })
+    expect(gameState.get().room).toStrictEqual({ code: 'AB3XYZ', role: 'guest', kind: 'duel', mode: 5 })
     expect(getActiveRoom()).toBe(lastRoom())
     expect(typeof getActiveRoom()?.makeAction).toBe('function')
   })
