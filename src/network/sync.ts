@@ -254,7 +254,7 @@ function detach(): void {
 
 function watch(state: GameState): void {
   const room = getActiveRoom()
-  if (state.connection.status === 'connected' && room && room !== attachedRoom) {
+  if (state.connection.status === 'connected' && state.room?.kind === 'duel' && room && room !== attachedRoom) {
     attach(room)
   } else if (!state.room && attachedRoom) {
     detach()
