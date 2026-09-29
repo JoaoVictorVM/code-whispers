@@ -8,7 +8,7 @@ import type {
   PlayerProfile,
   RoomRole,
 } from '../types/game'
-import { TELEPHONE_MAX_PLAYERS, addPlayer, isFull } from './lobbyProtocol'
+import { TELEPHONE_MAX_PLAYERS, addPlayer, isFull, parsePlayers } from './lobbyProtocol'
 import { generateRoomCode, normalizeRoomCode } from './roomCode'
 
 export const APP_ID = 'code-whispers'
@@ -29,7 +29,10 @@ export const CONNECTION_ERROR_MESSAGES: Record<ConnectionErrorType, string> = {
   'room-full': 'Sala cheia — essa sala já tem 2 jogadores.',
   clipboard: 'Não foi possível copiar — selecione o código manualmente.',
   signaling: 'Não foi possível criar a sala. Verifique sua conexão e tente de novo.',
+  'in-progress': 'Essa partida já começou. Espere o grupo voltar para a sala de espera.',
 }
+
+export const TELEPHONE_ROOM_FULL_MESSAGE = `Sala cheia: essa sala já tem ${TELEPHONE_MAX_PLAYERS} jogadores.`
 
 type HelloPayload = { nickname: string; avatarId: number }
 type SeatPayload = { id: string; nickname: string; avatarId: number; isHost: boolean }
@@ -107,14 +110,51 @@ function parseMode(data: unknown): MatchMode | null {
   return MATCH_MODES.find((candidate) => candidate === mode) ?? null
 }
 
-function fail(type: ConnectionErrorType): void {
+function fail(type: ConnectionErrorType, message = CONNECTION_ERROR_MESSAGES[type]): void {
   teardown()
   gameState.patch({
     room: null,
     remotePlayer: null,
     lobby: null,
-    connection: { status: 'idle', error: { type, message: CONNECTION_ERROR_MESSAGES[type] } },
+    connection: { status: 'idle', error: { type, message } },
   })
+}
+
+function roomFullMessage(data: unknown): string {
+  const capacity = typeof data === 'object' && data !== null ? (data as Record<string, unknown>).capacity : undefined
+  return capacity === TELEPHONE_MAX_PLAYERS ? TELEPHONE_ROOM_FULL_MESSAGE : CONNECTION_ERROR_MESSAGES['room-full']
+}
+
+function isTelephoneWelcome(data: unknown): boolean {
+  return typeof data === 'object' && data !== null && (data as Record<string, unknown>).kind === 'telephone'
+}
+
+function isFromTelephoneHost(peerId: string): boolean {
+  return opponentPeerId === peerId && gameState.get().room?.kind === 'telephone'
+}
+
+function acceptTelephoneHost(peerId: string, data: unknown, code: string): void {
+  const players = parsePlayers((data as Record<string, unknown>).players)
+  if (!parseProfile(data) || !players) return
+  if (players[0].id !== peerId || !players.some((player) => player.id === selfId)) return
+  opponentPeerId = peerId
+  clearTimers()
+  gameState.patch({
+    ...matchStartState(),
+    screen: 'sala',
+    room: { code, role: 'guest', kind: 'telephone', mode: gameState.get().mode },
+    remotePlayer: null,
+    lobby: { selfId, hostId: peerId, players, stage: 'lobby', departedNickname: null },
+    connection: { status: 'connected', error: null },
+  })
+}
+
+function applyLobbyList(data: unknown): void {
+  const lobby = gameState.get().lobby
+  const players = parsePlayers(typeof data === 'object' && data !== null ? (data as Record<string, unknown>).players : null)
+  if (!lobby || !players || players[0].id !== lobby.hostId) return
+  if (!players.some((player) => player.id === lobby.selfId)) return
+  gameState.patch({ lobby: { ...lobby, players } })
 }
 
 function openRoom(code: string, currentSession: number): { room: Room; handshake: Handshake } {
@@ -311,15 +351,28 @@ export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
 
   handshake.welcome.onMessage = (data, { peerId }) => {
     if (currentSession !== session || opponentPeerId !== null) return
+    if (isTelephoneWelcome(data)) {
+      acceptTelephoneHost(peerId, data, code)
+      return
+    }
     const remotePlayer = parseProfile(data)
     const mode = parseMode(data)
     if (!remotePlayer || mode === null) return
     acceptOpponent(peerId, remotePlayer, 'guest', code, mode)
   }
 
-  handshake.roomFull.onMessage = () => {
+  handshake.roomFull.onMessage = (data) => {
     if (currentSession !== session || opponentPeerId !== null) return
-    fail('room-full')
+    fail('room-full', roomFullMessage(data))
+  }
+
+  handshake.inProgress.onMessage = () => {
+    if (currentSession !== session || opponentPeerId !== null) return
+    fail('in-progress')
+  }
+
+  handshake.telLobby.onMessage = (data, { peerId }) => {
+    if (currentSession === session && isFromTelephoneHost(peerId)) applyLobbyList(data)
   }
 
   schedule(() => {

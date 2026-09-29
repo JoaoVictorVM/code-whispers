@@ -279,6 +279,11 @@ describe('room lifecycle', () => {
   })
 })
 
+const telephonePlayers = [
+  { id: 'host-peer', ...host, isHost: true },
+  { id: 'self-peer', ...guest, isHost: false },
+]
+
 describe('telephone room', () => {
   beforeEach(resetFakeTrystero)
 
@@ -366,6 +371,64 @@ describe('telephone room', () => {
     receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
     expect(lastRoom().actions.in_progress.send).toHaveBeenCalledWith({}, { target: 'peer-b' })
     expect(gameState.get().lobby?.players).toHaveLength(2)
+  })
+
+  it('guest enters the waiting room on a telephone welcome', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: telephonePlayers }, 'host-peer')
+    const { screen, room, lobby, connection } = gameState.get()
+    expect(screen).toBe('sala')
+    expect(room).toEqual({ code: 'AB3XYZ', role: 'guest', kind: 'telephone', mode: 3 })
+    expect(lobby).toEqual({
+      selfId: 'self-peer',
+      hostId: 'host-peer',
+      players: telephonePlayers,
+      stage: 'lobby',
+      departedNickname: null,
+    })
+    expect(connection).toEqual({ status: 'connected', error: null })
+    vi.advanceTimersByTime(JOIN_TIMEOUT_MS + 100)
+    expect(gameState.get().connection.error).toBeNull()
+  })
+
+  it('guest ignores a telephone welcome that does not seat it', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: telephonePlayers.slice(0, 1) }, 'host-peer')
+    receive('welcome', { kind: 'telephone', ...host, players: telephonePlayers }, 'other-peer')
+    expect(gameState.get().screen).toBe('inicio')
+    expect(gameState.get().lobby).toBeNull()
+  })
+
+  it('guest follows list broadcasts from the host only', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: telephonePlayers }, 'host-peer')
+    const grown = [...telephonePlayers, { id: 'peer-b', nickname: 'Gui', avatarId: 3, isHost: false }]
+    receive('tel_lobby', { players: grown }, 'peer-b')
+    expect(gameState.get().lobby?.players).toEqual(telephonePlayers)
+    receive('tel_lobby', { players: grown }, 'host-peer')
+    expect(gameState.get().lobby?.players).toEqual(grown)
+    receive('tel_lobby', { players: 'broken' }, 'host-peer')
+    expect(gameState.get().lobby?.players).toEqual(grown)
+  })
+
+  it('guest shows the telephone full room message', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('room_full', { capacity: 8 }, 'host-peer')
+    expect(gameState.get().connection.error).toEqual({
+      type: 'room-full',
+      message: 'Sala cheia: essa sala já tem 8 jogadores.',
+    })
+  })
+
+  it('guest shows the match in progress message', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('in_progress', {}, 'host-peer')
+    const { screen, connection } = gameState.get()
+    expect(screen).toBe('inicio')
+    expect(connection.error).toEqual({
+      type: 'in-progress',
+      message: 'Essa partida já começou. Espere o grupo voltar para a sala de espera.',
+    })
   })
 
   it('leaving the waiting room clears the lobby', () => {

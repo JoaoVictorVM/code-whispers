@@ -64,7 +64,7 @@ export interface RoomSession {
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected'
 
-export type ConnectionErrorType = 'not-found' | 'room-full' | 'clipboard' | 'signaling'
+export type ConnectionErrorType = 'not-found' | 'room-full' | 'clipboard' | 'signaling' | 'in-progress'
 
 export interface ConnectionError {
   type: ConnectionErrorType
