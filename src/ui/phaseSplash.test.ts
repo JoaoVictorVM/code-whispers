@@ -14,4 +14,19 @@ describe('decorative effects under reduced motion', () => {
     expect(append).not.toHaveBeenCalled()
     append.mockRestore()
   })
+
+  it('replaces the round line with a custom heading when motion is allowed', () => {
+    const matchMedia = window.matchMedia
+    window.matchMedia = ((query: string) => ({ ...matchMedia(query), matches: false })) as typeof window.matchMedia
+    try {
+      showPhaseSplash({ round: 1, totalRounds: 3, phaseLabel: 'Explique', heading: 'Etapa 2 de 3' })
+      const splash = document.querySelector('[data-component="phase-splash"]')
+      expect(splash?.textContent).toContain('Etapa 2 de 3')
+      expect(splash?.textContent).toContain('Explique')
+      expect(splash?.textContent).not.toContain('Rodada')
+    } finally {
+      window.matchMedia = matchMedia
+      document.querySelector('[data-component="phase-splash"]')?.remove()
+    }
+  })
 })

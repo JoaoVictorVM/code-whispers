@@ -5,11 +5,12 @@ export interface PhaseSplashOptions {
   round: number
   totalRounds: number
   phaseLabel: string
+  heading?: string
 }
 
 let active: HTMLElement | null = null
 
-export function showPhaseSplash({ round, totalRounds, phaseLabel }: PhaseSplashOptions): void {
+export function showPhaseSplash({ round, totalRounds, phaseLabel, heading }: PhaseSplashOptions): void {
   if (!canAnimate()) return
   active?.remove()
 
@@ -25,7 +26,7 @@ export function showPhaseSplash({ round, totalRounds, phaseLabel }: PhaseSplashO
   content.className = 'relative flex -rotate-3 flex-col items-center gap-1 text-center'
   const roundLine = document.createElement('span')
   roundLine.className = 'font-display text-xl text-ink sm:text-2xl'
-  roundLine.textContent = `Rodada ${round} de ${totalRounds}`
+  roundLine.textContent = heading ?? `Rodada ${round} de ${totalRounds}`
   const phaseLine = document.createElement('span')
   phaseLine.className = 'display-title text-6xl uppercase sm:text-8xl'
   phaseLine.textContent = phaseLabel
