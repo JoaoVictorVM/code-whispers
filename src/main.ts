@@ -13,6 +13,7 @@ import code from './screens/code'
 import explica from './screens/explica'
 import revisa from './screens/revisa'
 import final from './screens/final'
+import sala from './screens/sala'
 
 const PHASE_SPLASH_LABELS: Partial<Record<ScreenId, string>> = {
   code: 'Escrever',
@@ -26,8 +27,18 @@ const screens: Record<ScreenId, ScreenModule> = {
   explica,
   revisa,
   final,
-  sala: createPlaceholderScreen('sala', 'Sala de espera'),
+  sala,
   etapa: createPlaceholderScreen('etapa', 'A partida vai começar…'),
+}
+
+function disconnectCopy(state: GameState): { opponentNickname: string; message?: string } {
+  const { room, lobby } = state
+  if (room?.kind !== 'telephone' || !lobby) {
+    return { opponentNickname: state.remotePlayer?.nickname ?? 'O outro jogador' }
+  }
+  const opponentNickname = lobby.departedNickname ?? 'O host'
+  if (lobby.stage === 'playing') return { opponentNickname }
+  return { opponentNickname, message: `${opponentNickname} encerrou a sala.` }
 }
 
 function returnToStart(): void {
@@ -46,10 +57,7 @@ export function bootstrap(root: HTMLElement): () => void {
   function syncDisconnectModal(state: GameState): void {
     const shouldShow = state.connection.status === 'disconnected' && state.screen !== 'inicio'
     if (shouldShow && !disconnectModal) {
-      disconnectModal = createDisconnectModal({
-        opponentNickname: state.remotePlayer?.nickname ?? 'O outro jogador',
-        onConfirm: returnToStart,
-      })
+      disconnectModal = createDisconnectModal({ ...disconnectCopy(state), onConfirm: returnToStart })
       root.append(disconnectModal)
     } else if (!shouldShow && disconnectModal) {
       disconnectModal.remove()

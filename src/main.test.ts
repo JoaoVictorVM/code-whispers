@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('trystero/nostr', () => ({ joinRoom: vi.fn(), getRelaySockets: vi.fn(() => ({})) }))
+vi.mock('trystero/nostr', () => ({ joinRoom: vi.fn(), getRelaySockets: vi.fn(() => ({})), selfId: 'self-peer' }))
 import { bootstrap } from './main'
 import { gameState } from './state/gameState'
-import type { ScreenId } from './types/game'
+import type { LobbyStage, ScreenId } from './types/game'
 
 const headings: Record<ScreenId, string> = {
   inicio: 'Code Whispers',
@@ -11,7 +11,7 @@ const headings: Record<ScreenId, string> = {
   explica: 'Rodada 1 de 3 · Explicar',
   revisa: 'Rodada 1 de 3 · Avaliar',
   final: 'Fim de jogo — Rápida, 3 rodadas',
-  sala: 'Sala de espera',
+  sala: 'Telefone sem fio',
   etapa: 'A partida vai começar…',
 }
 
@@ -68,6 +68,33 @@ describe('screen router', () => {
     const modal = root.querySelector('[data-component="disconnect-modal"]')
     expect(modal?.textContent).toContain('Ana desconectou. A partida foi encerrada.')
     expect(root.querySelector('[data-screen="code"]')).not.toBeNull()
+  })
+
+  function telephoneDisconnect(screen: ScreenId, stage: LobbyStage, departedNickname: string): string | null | undefined {
+    gameState.patch({
+      screen,
+      room: { code: 'AB3XYZ', role: 'guest', kind: 'telephone', mode: 3 },
+      lobby: {
+        selfId: 'self-peer',
+        hostId: 'host-peer',
+        players: [
+          { id: 'host-peer', nickname: 'João', avatarId: 1, isHost: true },
+          { id: 'self-peer', nickname: 'Gui', avatarId: 3, isHost: false },
+        ],
+        stage,
+        departedNickname,
+      },
+      connection: { status: 'disconnected', error: null },
+    })
+    return root.querySelector('#disconnect-message')?.textContent
+  }
+
+  it('tells telephone guests that the host closed the waiting room', () => {
+    expect(telephoneDisconnect('sala', 'lobby', 'João')).toBe('João encerrou a sala.')
+  })
+
+  it('tells telephone players who left and ended the match', () => {
+    expect(telephoneDisconnect('etapa', 'playing', 'Breno')).toBe('Breno desconectou. A partida foi encerrada.')
   })
 
   it('does not show the disconnect modal on the start screen', () => {
