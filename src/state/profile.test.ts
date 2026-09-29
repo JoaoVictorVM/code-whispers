@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   PROFILE_STORAGE_KEY,
   loadStoredProfile,
+  parseProfile,
   saveProfile,
   validateNickname,
 } from './profile'
@@ -71,5 +72,19 @@ describe('profile storage', () => {
     expect(() => saveProfile({ nickname: 'Ana', avatarId: 1 })).not.toThrow()
     expect(() => loadStoredProfile()).not.toThrow()
     expect(loadStoredProfile()).toBeNull()
+  })
+})
+
+describe('parseProfile', () => {
+  it('accepts a valid profile and trims the nickname', () => {
+    expect(parseProfile({ nickname: '  Gui  ', avatarId: 3 })).toEqual({ nickname: 'Gui', avatarId: 3 })
+  })
+
+  it('rejects malformed profiles', () => {
+    expect(parseProfile(null)).toBeNull()
+    expect(parseProfile('Gui')).toBeNull()
+    expect(parseProfile({ nickname: 'G', avatarId: 3 })).toBeNull()
+    expect(parseProfile({ nickname: 'Gui', avatarId: 42 })).toBeNull()
+    expect(parseProfile({ nickname: 'Gui', avatarId: '3' })).toBeNull()
   })
 })

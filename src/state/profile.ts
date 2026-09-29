@@ -29,17 +29,20 @@ function isValidAvatarId(value: unknown): value is number {
   return typeof value === 'number' && AVATAR_IDS.includes(value)
 }
 
+export function parseProfile(data: unknown): PlayerProfile | null {
+  if (typeof data !== 'object' || data === null) return null
+  const { nickname, avatarId } = data as Record<string, unknown>
+  if (typeof nickname !== 'string' || !isValidAvatarId(avatarId)) return null
+  const validation = validateNickname(nickname)
+  if (!validation.valid) return null
+  return { nickname: validation.trimmed, avatarId }
+}
+
 export function loadStoredProfile(): PlayerProfile | null {
   try {
     const raw = localStorage.getItem(PROFILE_STORAGE_KEY)
     if (!raw) return null
-    const parsed: unknown = JSON.parse(raw)
-    if (typeof parsed !== 'object' || parsed === null) return null
-    const { nickname, avatarId } = parsed as Record<string, unknown>
-    if (typeof nickname !== 'string' || !isValidAvatarId(avatarId)) return null
-    const validation = validateNickname(nickname)
-    if (!validation.valid) return null
-    return { nickname: validation.trimmed, avatarId }
+    return parseProfile(JSON.parse(raw))
   } catch {
     return null
   }

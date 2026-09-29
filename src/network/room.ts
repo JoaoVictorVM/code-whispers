@@ -1,6 +1,6 @@
 import { getRelaySockets, joinRoom, selfId, type MessageAction, type Room } from 'trystero/nostr'
 import { createMatchState, gameState } from '../state/gameState'
-import { AVATAR_IDS, validateNickname } from '../state/profile'
+import { parseProfile, validateNickname } from '../state/profile'
 import type {
   ConnectionErrorType,
   GameState,
@@ -97,16 +97,6 @@ function teardown(): void {
 
 function matchStartState(): Partial<GameState> {
   return { screen: 'code', ...createMatchState() }
-}
-
-function parseProfile(data: unknown): PlayerProfile | null {
-  if (typeof data !== 'object' || data === null) return null
-  const { nickname, avatarId } = data as Record<string, unknown>
-  if (typeof nickname !== 'string' || typeof avatarId !== 'number') return null
-  if (!AVATAR_IDS.includes(avatarId)) return null
-  const validation = validateNickname(nickname)
-  if (!validation.valid) return null
-  return { nickname: validation.trimmed, avatarId }
 }
 
 function parseMode(data: unknown): MatchMode | null {
