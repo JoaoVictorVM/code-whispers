@@ -316,6 +316,58 @@ describe('telephone room', () => {
     expect(gameState.get().lobby).toBeNull()
   })
 
+  it('host seats guests in arrival order and broadcasts the list', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    const players = [
+      { id: 'self-peer', ...host, isHost: true },
+      { id: 'peer-a', ...guest, isHost: false },
+      { id: 'peer-b', nickname: 'Gui', avatarId: 3, isHost: false },
+    ]
+    expect(gameState.get().lobby?.players).toEqual(players)
+    expect(lastRoom().actions.welcome.send).toHaveBeenLastCalledWith(
+      { kind: 'telephone', ...host, players },
+      { target: 'peer-b' },
+    )
+    expect(lastRoom().actions.tel_lobby.send).toHaveBeenLastCalledWith({ players })
+  })
+
+  it('host welcomes a repeated hello again without seating it twice', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', guest, 'peer-a')
+    expect(gameState.get().lobby?.players).toHaveLength(2)
+    expect(lastRoom().actions.welcome.send).toHaveBeenCalledTimes(2)
+  })
+
+  it('host ignores malformed hello payloads', () => {
+    hostTelephoneRoom(host)
+    receive('hello', { nickname: 'x', avatarId: 1 }, 'peer-a')
+    expect(gameState.get().lobby?.players).toHaveLength(1)
+    expect(lastRoom().actions.welcome.send).not.toHaveBeenCalled()
+  })
+
+  it('host rejects the ninth player as a full room', () => {
+    hostTelephoneRoom(host)
+    for (let index = 1; index <= 7; index += 1) {
+      receive('hello', { nickname: `Jogador ${index}`, avatarId: index }, `peer-${index}`)
+    }
+    receive('hello', guest, 'peer-late')
+    expect(gameState.get().lobby?.players).toHaveLength(8)
+    expect(lastRoom().actions.room_full.send).toHaveBeenCalledWith({ capacity: 8 }, { target: 'peer-late' })
+  })
+
+  it('host rejects new players once the match has started', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    const lobby = gameState.get().lobby!
+    gameState.patch({ lobby: { ...lobby, stage: 'playing' } })
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    expect(lastRoom().actions.in_progress.send).toHaveBeenCalledWith({}, { target: 'peer-b' })
+    expect(gameState.get().lobby?.players).toHaveLength(2)
+  })
+
   it('leaving the waiting room clears the lobby', () => {
     hostTelephoneRoom(host)
     leaveRoom()

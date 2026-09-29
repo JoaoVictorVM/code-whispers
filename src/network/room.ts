@@ -8,6 +8,7 @@ import type {
   PlayerProfile,
   RoomRole,
 } from '../types/game'
+import { TELEPHONE_MAX_PLAYERS, addPlayer, isFull } from './lobbyProtocol'
 import { generateRoomCode, normalizeRoomCode } from './roomCode'
 
 export const APP_ID = 'code-whispers'
@@ -31,13 +32,20 @@ export const CONNECTION_ERROR_MESSAGES: Record<ConnectionErrorType, string> = {
 }
 
 type HelloPayload = { nickname: string; avatarId: number }
-type WelcomePayload = HelloPayload & { kind: 'duel'; mode: MatchMode }
+type SeatPayload = { id: string; nickname: string; avatarId: number; isHost: boolean }
+type DuelWelcomePayload = HelloPayload & { kind: 'duel'; mode: MatchMode }
+type TelephoneWelcomePayload = HelloPayload & { kind: 'telephone'; players: SeatPayload[] }
+type WelcomePayload = DuelWelcomePayload | TelephoneWelcomePayload
+type RoomFullPayload = { capacity?: number }
+type PlayersPayload = { players: SeatPayload[] }
 type EmptyPayload = Record<string, never>
 
 interface Handshake {
   hello: MessageAction<HelloPayload>
   welcome: MessageAction<WelcomePayload>
-  roomFull: MessageAction<EmptyPayload>
+  roomFull: MessageAction<RoomFullPayload>
+  inProgress: MessageAction<EmptyPayload>
+  telLobby: MessageAction<PlayersPayload>
 }
 
 let activeRoom: Room | null = null
@@ -115,7 +123,9 @@ function openRoom(code: string, currentSession: number): { room: Room; handshake
   const handshake: Handshake = {
     hello: room.makeAction<HelloPayload>('hello'),
     welcome: room.makeAction<WelcomePayload>('welcome'),
-    roomFull: room.makeAction<EmptyPayload>('room_full'),
+    roomFull: room.makeAction<RoomFullPayload>('room_full'),
+    inProgress: room.makeAction<EmptyPayload>('in_progress'),
+    telLobby: room.makeAction<PlayersPayload>('tel_lobby'),
   }
   room.onPeerLeave = (peerId) => {
     if (currentSession !== session || peerId !== opponentPeerId) return
@@ -215,11 +225,16 @@ export function hostTelephoneRoom(profile: PlayerProfile): void {
     connection: { status: 'connecting', error: null },
   })
 
+  let handshake: Handshake
   try {
-    openRoom(code, currentSession)
+    handshake = openRoom(code, currentSession).handshake
   } catch {
     fail('signaling')
     return
+  }
+
+  handshake.hello.onMessage = (data, { peerId }) => {
+    if (currentSession === session) seatGuest(handshake, profile, data, peerId)
   }
 
   whenRelayReady(currentSession, () => {
@@ -238,6 +253,28 @@ export function hostTelephoneRoom(profile: PlayerProfile): void {
       connection: { status: 'connected', error: null },
     })
   })
+}
+
+function seatGuest(handshake: Handshake, profile: PlayerProfile, data: unknown, peerId: string): void {
+  const lobby = gameState.get().lobby
+  if (!lobby) return
+  const guest = parseProfile(data)
+  if (!guest) return
+  const seated = lobby.players.some((player) => player.id === peerId)
+  if (!seated && lobby.stage !== 'lobby') {
+    handshake.inProgress.send({}, { target: peerId }).catch(() => undefined)
+    return
+  }
+  if (!seated && isFull(lobby.players)) {
+    handshake.roomFull.send({ capacity: TELEPHONE_MAX_PLAYERS }, { target: peerId }).catch(() => undefined)
+    return
+  }
+  const players = addPlayer(lobby.players, { id: peerId, ...guest, isHost: false })
+  gameState.patch({ lobby: { ...lobby, players } })
+  handshake.welcome
+    .send({ kind: 'telephone', nickname: profile.nickname, avatarId: profile.avatarId, players }, { target: peerId })
+    .catch(() => undefined)
+  handshake.telLobby.send({ players }).catch(() => undefined)
 }
 
 export function getSelfId(): string {
