@@ -1,10 +1,11 @@
 import { play } from '../audio/sfx'
-import { CONNECTION_ERROR_MESSAGES, hostRoom, joinRoomByCode, leaveRoom } from '../network/room'
+import { hostRoom, joinRoomByCode, leaveRoom } from '../network/room'
 import { ROOM_CODE_LENGTH, normalizeRoomCode, sanitizeRoomCodeInput } from '../network/roomCode'
 import { gameState } from '../state/gameState'
 import { NICKNAME_RULE_MESSAGE } from '../state/profile'
 import type { GameState, MatchMode } from '../types/game'
 import { canAnimate, gsap } from '../ui/motion'
+import { createRoomCodeDisplay } from '../ui/roomCodeDisplay'
 
 export const MODE_OPTIONS: readonly { value: MatchMode; label: string }[] = [
   { value: 3, label: 'Rápida (3)' },
@@ -12,7 +13,7 @@ export const MODE_OPTIONS: readonly { value: MatchMode; label: string }[] = [
   { value: 7, label: 'Maior (7)' },
 ]
 
-export const COPIED_FEEDBACK_MS = 2000
+export { COPIED_FEEDBACK_MS } from '../ui/roomCodeDisplay'
 
 type PendingAction = 'host' | 'guest' | null
 
@@ -23,10 +24,7 @@ export interface RoomPanels {
 
 const panelClass = 'ink-card flex flex-col gap-4 p-5 sm:p-6'
 const primaryButtonClass = 'btn-chunky w-full bg-tangerine px-5 py-3 text-lg text-ink'
-const secondaryButtonClass = 'btn-chunky bg-paper px-5 py-2 text-sm text-ink'
 const fieldClass = 'field-ink w-full px-3 py-2.5 font-bold'
-const tileClass =
-  'room-tile grid size-11 place-items-center rounded-lg border-[3px] border-ink bg-sunflower font-display text-2xl text-ink shadow-[0_4px_0_var(--color-ink)] sm:size-12'
 
 function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -56,10 +54,8 @@ function modeLabel(mode: MatchMode): string {
 
 export function createRoomPanels(): RoomPanels {
   let pending: PendingAction = null
-  let shownCode = ''
   let lastError: GameState['connection']['error'] = null
   const animated = canAnimate()
-  let copyTimer: ReturnType<typeof setTimeout> | null = null
 
   const wrapper = element('div', 'grid w-full max-w-3xl gap-4 sm:grid-cols-2')
   wrapper.dataset.component = 'room-panels'
@@ -105,13 +101,7 @@ export function createRoomPanels(): RoomPanels {
   hostForm.append(modeLabelElement, createButton, hostError)
 
   const hostWaiting = element('div', 'flex flex-col items-center gap-4 text-center')
-  const codeDisplay = element('output', 'flex justify-center gap-1.5 sm:gap-2')
-  codeDisplay.dataset.role = 'room-code'
-  const copyButton = element('button', secondaryButtonClass, 'Copiar')
-  copyButton.type = 'button'
-  copyButton.dataset.role = 'copy-code'
-  const copyError = element('p', 'text-sm font-bold text-cherry')
-  copyError.dataset.role = 'copy-error'
+  const codeDisplay = createRoomCodeDisplay()
   const modeInfo = element('p', 'text-sm font-extrabold uppercase tracking-wider text-ink/70')
   modeInfo.dataset.role = 'room-mode'
   const waitingLabel = element('p', 'font-bold text-ink/80', 'Aguardando o outro jogador…')
@@ -119,7 +109,7 @@ export function createRoomPanels(): RoomPanels {
   const cancelButton = element('button', 'text-sm font-bold text-ink/60 underline decoration-2 underline-offset-4 hover:text-ink', 'Cancelar')
   cancelButton.type = 'button'
   cancelButton.dataset.role = 'cancel-room'
-  hostWaiting.append(codeDisplay, copyButton, copyError, modeInfo, waitingLabel, cancelButton)
+  hostWaiting.append(codeDisplay.element, modeInfo, waitingLabel, cancelButton)
 
   hostPanel.append(hostTitle, hostForm, hostWaiting)
 
@@ -176,10 +166,10 @@ export function createRoomPanels(): RoomPanels {
     setButtonContent(createButton, creating ? 'Criando sala…' : 'Criar sala', creating)
 
     if (hosting && room) {
-      showCode(room.code)
+      codeDisplay.show(room.code)
       modeInfo.textContent = `Modo: ${modeLabel(room.mode)}`
     } else {
-      shownCode = ''
+      codeDisplay.reset()
     }
 
     const codeValid = normalizeRoomCode(codeInput.value) !== null
@@ -200,69 +190,11 @@ export function createRoomPanels(): RoomPanels {
       play('error')
     }
     lastError = connection.error
-
-    if (!hosting) resetCopyFeedback()
-  }
-
-  function showCode(code: string): void {
-    if (code === shownCode) return
-    shownCode = code
-    const tiles = Array.from(code, (char) => element('span', tileClass, char))
-    codeDisplay.replaceChildren(...tiles)
-    if (!animated) return
-    gsap.from(tiles, {
-      rotationX: -90,
-      y: -20,
-      opacity: 0,
-      duration: 0.45,
-      ease: 'back.out(2)',
-      stagger: {
-        each: 0.08,
-        onStart: () => play('pop'),
-      },
-    })
   }
 
   function shake(target: HTMLElement): void {
     if (!animated) return
     gsap.fromTo(target, { x: -10 }, { x: 0, duration: 0.5, ease: 'elastic.out(1.4, 0.2)' })
-  }
-
-  function resetCopyFeedback(): void {
-    if (copyTimer) clearTimeout(copyTimer)
-    copyTimer = null
-    copyButton.textContent = 'Copiar'
-    copyError.textContent = ''
-    copyError.hidden = true
-  }
-
-  function selectCode(): void {
-    const selection = window.getSelection()
-    if (!selection) return
-    const range = document.createRange()
-    range.selectNodeContents(codeDisplay)
-    selection.removeAllRanges()
-    selection.addRange(range)
-  }
-
-  async function copyCode(): Promise<void> {
-    const code = codeDisplay.textContent ?? ''
-    resetCopyFeedback()
-    try {
-      if (!navigator.clipboard) throw new Error('clipboard unavailable')
-      await navigator.clipboard.writeText(code)
-      copyButton.textContent = 'Copiado!'
-      play('success')
-      if (animated) gsap.fromTo(codeDisplay.children, { y: 0 }, { y: -10, duration: 0.14, yoyo: true, repeat: 1, stagger: 0.04, ease: 'power2.out' })
-      copyTimer = setTimeout(() => {
-        copyTimer = null
-        copyButton.textContent = 'Copiar'
-      }, COPIED_FEEDBACK_MS)
-    } catch {
-      selectCode()
-      copyError.textContent = CONNECTION_ERROR_MESSAGES.clipboard
-      copyError.hidden = false
-    }
   }
 
   createButton.addEventListener('click', () => {
@@ -298,10 +230,6 @@ export function createRoomPanels(): RoomPanels {
     if (event.key === 'Enter' && !joinButton.disabled) joinButton.click()
   })
 
-  copyButton.addEventListener('click', () => {
-    void copyCode()
-  })
-
   cancelButton.addEventListener('click', () => {
     pending = null
     play('tap')
@@ -315,7 +243,7 @@ export function createRoomPanels(): RoomPanels {
     element: wrapper,
     destroy() {
       unsubscribe()
-      if (copyTimer) clearTimeout(copyTimer)
+      codeDisplay.destroy()
       wrapper.remove()
     },
   }
