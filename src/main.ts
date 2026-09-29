@@ -29,6 +29,7 @@ const screens: Record<ScreenId, ScreenModule> = {
   final,
   sala,
   etapa: createPlaceholderScreen('etapa', 'A partida vai começar…'),
+  revelacao: createPlaceholderScreen('revelacao', 'Revelação'),
 }
 
 function disconnectCopy(state: GameState): { opponentNickname: string; message?: string } {

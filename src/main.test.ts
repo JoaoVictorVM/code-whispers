@@ -13,6 +13,7 @@ const headings: Record<ScreenId, string> = {
   final: 'Fim de jogo — Rápida, 3 rodadas',
   sala: 'Telefone sem fio',
   etapa: 'A partida vai começar…',
+  revelacao: 'Revelação',
 }
 
 describe('screen router', () => {
