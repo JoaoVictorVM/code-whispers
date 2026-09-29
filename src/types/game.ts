@@ -91,12 +91,36 @@ export interface LobbyState {
   departedNickname: string | null
 }
 
+export type StepKind = 'describe' | 'code' | 'explain'
+
+export interface ChainEntry {
+  author: PlayerProfile
+  kind: StepKind
+  content: CodeSubmission | string
+}
+
+export interface Chain {
+  owner: PlayerProfile
+  entries: ChainEntry[]
+}
+
+export interface TelephoneState {
+  step: number
+  totalSteps: number
+  stepKind: StepKind
+  received: CodeSubmission | string | null
+  readyIds: string[]
+  localReady: boolean
+  chains: Chain[] | null
+}
+
 export interface GameState {
   screen: ScreenId
   localPlayer: PlayerProfile | null
   remotePlayer: PlayerProfile | null
   room: RoomSession | null
   lobby: LobbyState | null
+  telephone: TelephoneState | null
   connection: ConnectionState
   mode: MatchMode
   round: number
