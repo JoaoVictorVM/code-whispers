@@ -8,7 +8,7 @@ import { createDisconnectModal } from './ui/disconnectModal'
 import { showPhaseSplash } from './ui/phaseSplash'
 import { createSoundToggle } from './ui/soundToggle'
 import type { GameState, ScreenId } from './types/game'
-import { createPlaceholderScreen, type ScreenModule } from './screens/screen'
+import type { ScreenModule } from './screens/screen'
 import inicio from './screens/inicio'
 import code from './screens/code'
 import explica from './screens/explica'
@@ -16,6 +16,7 @@ import revisa from './screens/revisa'
 import final from './screens/final'
 import sala from './screens/sala'
 import etapa from './screens/etapa'
+import revelacao from './screens/revelacao'
 
 const PHASE_SPLASH_LABELS: Partial<Record<ScreenId, string>> = {
   code: 'Escrever',
@@ -31,7 +32,7 @@ const screens: Record<ScreenId, ScreenModule> = {
   final,
   sala,
   etapa,
-  revelacao: createPlaceholderScreen('revelacao', 'Revelação'),
+  revelacao,
 }
 
 function disconnectCopy(state: GameState): { opponentNickname: string; message?: string } {
