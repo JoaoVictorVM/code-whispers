@@ -1,6 +1,6 @@
 # Publicando no itch.io
 
-O jogo é um pacote estático (HTML, CSS e JS) sem servidor próprio. Os dois jogadores se conectam direto pelo navegador via WebRTC, com sinalização por relays Nostr públicos.
+O jogo é um pacote estático (HTML, CSS e JS) sem servidor próprio. Os jogadores se conectam direto pelo navegador via WebRTC, com sinalização por relays Nostr públicos.
 
 ## 1. Gerar o pacote
 
@@ -30,6 +30,7 @@ Em **Create new project** (ou **Edit game**, se o projeto já existir):
 | Fullscreen button | marcado |
 | Enable scrollbars | marcado |
 | SharedArrayBuffer support | desmarcado |
+| Multiplayer support | **Ad-hoc networked multiplayer**, de 2 a 8 jogadores |
 
 Salve e abra a página do jogo.
 
@@ -37,6 +38,7 @@ Salve e abra a página do jogo.
 
 1. Abra a página do jogo com o DevTools aberto na aba Console. O jogo deve carregar sem erros.
 2. Em outro navegador ou dispositivo, de preferência em outra rede, abra a mesma página.
-3. Crie uma sala em um lado, entre com o código no outro e jogue uma partida **Rápida (3)** até o resumo.
+3. Crie uma sala de **Duelo** em um lado, entre com o código no outro e jogue uma partida **Rápida (3)** até o resumo.
+4. Crie uma sala de **Telefone sem fio** e entre com pelo menos mais dois navegadores. Jogue até o fim da revelação e volte para a sala de espera.
 
 Se a conexão não acontecer, confira se algum relay da lista `NOSTR_RELAY_URLS` em `src/network/room.ts` saiu do ar e troque a URL por outra que funcione.
