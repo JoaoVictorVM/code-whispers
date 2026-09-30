@@ -6,6 +6,7 @@ import {
   answerPayload,
   appendStep,
   createChains,
+  firstCursor,
   parseChains,
   parseProgress,
   parseStepMessage,
@@ -85,6 +86,7 @@ function dispatchStep(): void {
       readyIds: [],
       localReady: false,
       chains: null,
+      revealCursor: firstCursor(),
     },
   })
 }
@@ -105,7 +107,7 @@ function finishMatch(): void {
   gameState.patch({
     screen: 'revelacao',
     lobby: { ...lobby, stage: 'reveal' },
-    telephone: { ...telephone, readyIds: [], localReady: false, chains: hostChains },
+    telephone: { ...telephone, readyIds: [], localReady: false, chains: hostChains, revealCursor: firstCursor() },
   })
 }
 
@@ -198,6 +200,7 @@ function handleStep(data: unknown, peerId: string): void {
       readyIds: [],
       localReady: false,
       chains: null,
+      revealCursor: firstCursor(),
     },
   })
 }
@@ -223,7 +226,7 @@ function handleFinish(data: unknown, peerId: string): void {
   gameState.patch({
     screen: 'revelacao',
     lobby: { ...lobby, stage: 'reveal' },
-    telephone: { ...telephone, readyIds: [], localReady: false, chains },
+    telephone: { ...telephone, readyIds: [], localReady: false, chains, revealCursor: firstCursor() },
   })
 }
 

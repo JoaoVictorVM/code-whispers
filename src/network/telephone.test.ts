@@ -118,6 +118,7 @@ describe('telephone match engine as host', () => {
       readyIds: [],
       localReady: false,
       chains: null,
+      revealCursor: { chain: 0, entry: 0 },
     })
   })
 
@@ -214,6 +215,7 @@ describe('telephone match engine as host', () => {
     expect(chains?.[0].entries.map((entry) => entry.author.nickname)).toEqual(['João', 'Gui', 'Breno'])
     expect(chains?.[0].entries.map((entry) => entry.kind)).toEqual(['code', 'explain', 'code'])
     expect(action('tel_finish').send).toHaveBeenCalledWith({ chains })
+    expect(telephone?.revealCursor).toEqual({ chain: 0, entry: 0 })
   })
 
   it('stops the match when the room ends', async () => {
@@ -269,6 +271,7 @@ describe('telephone match engine as guest', () => {
       readyIds: [],
       localReady: false,
       chains: null,
+      revealCursor: { chain: 0, entry: 0 },
     })
   })
 
@@ -338,6 +341,7 @@ describe('telephone match engine as guest', () => {
     expect(screen).toBe('revelacao')
     expect(lobby?.stage).toBe('reveal')
     expect(telephone?.chains).toEqual(finishedChains())
+    expect(telephone?.revealCursor).toEqual({ chain: 0, entry: 0 })
   })
 
   it('ignores broken chains', () => {

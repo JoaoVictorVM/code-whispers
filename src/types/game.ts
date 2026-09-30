@@ -117,6 +117,7 @@ export interface TelephoneState {
   readyIds: string[]
   localReady: boolean
   chains: Chain[] | null
+  revealCursor: RevealCursor
 }
 
 export interface GameState {

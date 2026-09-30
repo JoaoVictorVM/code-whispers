@@ -533,7 +533,7 @@ describe('telephone room', () => {
     hostTelephoneRoom(host)
     receive('hello', guest, 'peer-a')
     receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
-    const leftover = { step: 2, totalSteps: 3, stepKind: 'code' as const, received: null, readyIds: [], localReady: true, chains: null }
+    const leftover = { step: 2, totalSteps: 3, stepKind: 'code' as const, received: null, readyIds: [], localReady: true, chains: null, revealCursor: { chain: 0, entry: 0 } }
     gameState.patch({ telephone: leftover })
     startTelephoneMatch()
     expect(gameState.get().telephone).toBeNull()
