@@ -104,6 +104,11 @@ export interface Chain {
   entries: ChainEntry[]
 }
 
+export interface RevealCursor {
+  chain: number
+  entry: number
+}
+
 export interface TelephoneState {
   step: number
   totalSteps: number

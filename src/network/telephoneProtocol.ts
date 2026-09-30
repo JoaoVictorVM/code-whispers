@@ -1,5 +1,5 @@
 import { parseProfile } from '../state/profile'
-import type { Chain, ChainEntry, CodeSubmission, PlayerProfile, StepKind } from '../types/game'
+import type { Chain, ChainEntry, CodeSubmission, PlayerProfile, RevealCursor, StepKind } from '../types/game'
 import { TELEPHONE_MAX_PLAYERS, TELEPHONE_MIN_PLAYERS } from './lobbyProtocol'
 import { validateExplanation, validateReadyPayload, type ValidationResult } from './syncProtocol'
 
@@ -130,4 +130,29 @@ export function parseChains(data: unknown, playerCount: number): Chain[] | null 
     chains.push({ owner, entries: entries as ChainEntry[] })
   }
   return chains
+}
+
+export function firstCursor(): RevealCursor {
+  return { chain: 0, entry: 0 }
+}
+
+export function nextCursor(cursor: RevealCursor, playerCount: number): RevealCursor | null {
+  if (cursor.entry < playerCount - 1) return { chain: cursor.chain, entry: cursor.entry + 1 }
+  if (cursor.chain < playerCount - 1) return { chain: cursor.chain + 1, entry: 0 }
+  return null
+}
+
+export function isRevealFinished(cursor: RevealCursor, playerCount: number): boolean {
+  return nextCursor(cursor, playerCount) === null
+}
+
+export function revealButtonLabel(cursor: RevealCursor, playerCount: number): string {
+  if (isRevealFinished(cursor, playerCount)) return 'Voltar para a sala'
+  return cursor.entry === playerCount - 1 ? 'Próxima cadeia' : 'Próximo'
+}
+
+export function parseCursor(data: unknown, playerCount: number): RevealCursor | null {
+  const record = asRecord(data)
+  if (!record || !isStepIndex(record.chain, playerCount) || !isStepIndex(record.entry, playerCount)) return null
+  return { chain: record.chain, entry: record.entry }
 }
