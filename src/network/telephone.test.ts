@@ -28,7 +28,7 @@ vi.mock('trystero/nostr', () => ({
 
 const { gameState } = await import('../state/gameState')
 const { hostTelephoneRoom, joinRoomByCode, leaveRoom, startTelephoneMatch } = await import('./room')
-const { startTelephone, stopTelephone, submitStep, retractStep } = await import('./telephone')
+const { startTelephone, stopTelephone, submitStep, retractStep, advanceReveal } = await import('./telephone')
 
 const host: PlayerProfile = { nickname: 'João', avatarId: 1 }
 const guests: PlayerProfile[] = [
@@ -218,6 +218,33 @@ describe('telephone match engine as host', () => {
     expect(telephone?.revealCursor).toEqual({ chain: 0, entry: 0 })
   })
 
+  it('advances the reveal and broadcasts the absolute position', async () => {
+    await hostMatch(2)
+    answerAll(3)
+    answerAll(3)
+    answerAll(3)
+    expect(advanceReveal()).toBe(true)
+    expect(advanceReveal()).toBe(true)
+    expect(action('tel_cursor').send.mock.calls).toEqual([[{ chain: 0, entry: 1 }], [{ chain: 0, entry: 2 }]])
+    expect(advanceReveal()).toBe(true)
+    expect(gameState.get().telephone?.revealCursor).toEqual({ chain: 1, entry: 0 })
+  })
+
+  it('stops advancing once the reveal is finished', async () => {
+    await hostMatch(2)
+    answerAll(3)
+    answerAll(3)
+    answerAll(3)
+    gameState.patch({ telephone: { ...gameState.get().telephone!, revealCursor: { chain: 2, entry: 2 } } })
+    expect(advanceReveal()).toBe(false)
+    expect(action('tel_cursor').send).not.toHaveBeenCalled()
+  })
+
+  it('does not advance a reveal before the match ends', async () => {
+    await hostMatch(2)
+    expect(advanceReveal()).toBe(false)
+  })
+
   it('stops the match when the room ends', async () => {
     await hostMatch(2)
     submitStep(snippet)
@@ -351,5 +378,27 @@ describe('telephone match engine as guest', () => {
     receive('tel_finish', { chains: finishedChains().slice(0, 2) }, 'host-peer')
     expect(gameState.get().screen).toBe('etapa')
     expect(warn).toHaveBeenCalledTimes(1)
+  })
+
+  it('follows the reveal position sent by the host only', () => {
+    joinMatch()
+    receive('tel_step', { step: 2, total: 3, kind: 'code', received: text }, 'host-peer')
+    receive('tel_cursor', { chain: 1, entry: 0 }, 'host-peer')
+    expect(gameState.get().telephone?.revealCursor).toEqual({ chain: 0, entry: 0 })
+    receive('tel_finish', { chains: finishedChains() }, 'host-peer')
+    receive('tel_cursor', { chain: 1, entry: 0 }, 'peer-b')
+    expect(gameState.get().telephone?.revealCursor).toEqual({ chain: 0, entry: 0 })
+    receive('tel_cursor', { chain: 1, entry: 0 }, 'host-peer')
+    receive('tel_cursor', { chain: 1, entry: 0 }, 'host-peer')
+    expect(gameState.get().telephone?.revealCursor).toEqual({ chain: 1, entry: 0 })
+    receive('tel_cursor', { chain: 5, entry: 0 }, 'host-peer')
+    expect(gameState.get().telephone?.revealCursor).toEqual({ chain: 1, entry: 0 })
+  })
+
+  it('never lets a guest advance the reveal', () => {
+    joinMatch()
+    receive('tel_step', { step: 2, total: 3, kind: 'code', received: text }, 'host-peer')
+    receive('tel_finish', { chains: finishedChains() }, 'host-peer')
+    expect(advanceReveal()).toBe(false)
   })
 })
