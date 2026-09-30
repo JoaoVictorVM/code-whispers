@@ -29,6 +29,18 @@ describe('createEditor', () => {
     editor = null
   })
 
+  it('can grow with its content instead of using the fixed height', () => {
+    create()
+    const fixed = viewOf(parent).dom.className
+    editor?.destroy()
+    parent.replaceChildren()
+    create({ fitContent: true, readOnly: true, initialCode: 'a = 1\nb = 2\nprint(a + b)' })
+    const fitted = viewOf(parent).dom
+    expect(fitted.className).not.toBe(fixed)
+    const rules = Array.from(document.querySelectorAll('style'), (style) => style.textContent ?? '').join('\n')
+    expect(rules).toContain('max-height: 480px')
+  })
+
   it('test_default_language_is_javascript', () => {
     const instance = create()
     expect(instance.getLanguage()).toBe('javascript')
