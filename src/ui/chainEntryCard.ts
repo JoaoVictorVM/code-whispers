@@ -58,7 +58,7 @@ export function createChainEntryCard(entry: ChainEntry, position: number, animat
     const slot = document.createElement('div')
     slot.dataset.role = 'entry-code'
     card.append(slot)
-    editor = createEditor({ parent: slot, readOnly: true, initialLanguage: entry.content.language, initialCode: entry.content.code })
+    editor = createEditor({ parent: slot, readOnly: true, fitContent: true, initialLanguage: entry.content.language, initialCode: entry.content.code })
   }
 
   item.append(author, card)
