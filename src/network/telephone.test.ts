@@ -27,7 +27,7 @@ vi.mock('trystero/nostr', () => ({
 }))
 
 const { gameState } = await import('../state/gameState')
-const { hostTelephoneRoom, joinRoomByCode, leaveRoom, startTelephoneMatch } = await import('./room')
+const { hostTelephoneRoom, joinRoomByCode, leaveRoom, returnToLobby, startTelephoneMatch } = await import('./room')
 const { startTelephone, stopTelephone, submitStep, retractStep, advanceReveal } = await import('./telephone')
 
 const host: PlayerProfile = { nickname: 'João', avatarId: 1 }
@@ -243,6 +243,21 @@ describe('telephone match engine as host', () => {
   it('does not advance a reveal before the match ends', async () => {
     await hostMatch(2)
     expect(advanceReveal()).toBe(false)
+  })
+
+  it('runs a new match after returning to the waiting room', async () => {
+    await hostMatch(2)
+    answerAll(3)
+    answerAll(3)
+    answerAll(3)
+    while (advanceReveal()) continue
+    expect(returnToLobby()).toBe(true)
+    expect(gameState.get().telephone).toBeNull()
+    action('tel_step').send.mockClear()
+    startTelephoneMatch()
+    await Promise.resolve()
+    expect(gameState.get().telephone).toMatchObject({ step: 0, chains: null })
+    expect(action('tel_step').send).toHaveBeenCalledTimes(2)
   })
 
   it('stops the match when the room ends', async () => {

@@ -10,6 +10,7 @@ import type {
 } from '../types/game'
 import { TELEPHONE_MAX_PLAYERS, addPlayer, canStart, isFull, parsePlayers, removePlayer } from './lobbyProtocol'
 import { generateRoomCode, normalizeRoomCode } from './roomCode'
+import { isRevealFinished } from './telephoneProtocol'
 
 export const APP_ID = 'code-whispers'
 export const NOSTR_RELAY_URLS = [
@@ -52,6 +53,7 @@ interface Handshake {
   telLobby: MessageAction<PlayersPayload>
   telStart: MessageAction<PlayersPayload>
   telEnded: MessageAction<EndedPayload>
+  telToLobby: MessageAction<PlayersPayload>
 }
 
 let activeRoom: Room | null = null
@@ -165,6 +167,7 @@ function openRoom(code: string, currentSession: number): { room: Room; handshake
     telLobby: room.makeAction<PlayersPayload>('tel_lobby'),
     telStart: room.makeAction<PlayersPayload>('tel_start'),
     telEnded: room.makeAction<EndedPayload>('tel_ended'),
+    telToLobby: room.makeAction<PlayersPayload>('tel_to_lobby'),
   }
   activeHandshake = handshake
   room.onPeerLeave = (peerId) => {
@@ -339,6 +342,24 @@ export function startTelephoneMatch(): boolean {
   return true
 }
 
+export function returnToLobby(): boolean {
+  const { room, lobby, telephone } = gameState.get()
+  if (!activeHandshake || room?.kind !== 'telephone' || room.role !== 'host') return false
+  if (!lobby || lobby.stage !== 'reveal' || !telephone?.chains) return false
+  if (!isRevealFinished(telephone.revealCursor, telephone.chains.length)) return false
+  activeHandshake.telToLobby.send({ players: lobby.players }).catch(() => undefined)
+  gameState.patch({ screen: 'sala', lobby: { ...lobby, stage: 'lobby', departedNickname: null }, telephone: null })
+  return true
+}
+
+function applyReturnToLobby(data: unknown): void {
+  const lobby = gameState.get().lobby
+  const players = parsePlayers(typeof data === 'object' && data !== null ? (data as Record<string, unknown>).players : null)
+  if (!lobby || lobby.stage !== 'reveal' || !players) return
+  if (players[0].id !== lobby.hostId || !players.some((player) => player.id === lobby.selfId)) return
+  gameState.patch({ screen: 'sala', lobby: { ...lobby, players, stage: 'lobby', departedNickname: null }, telephone: null })
+}
+
 function applyMatchStart(data: unknown): void {
   const lobby = gameState.get().lobby
   const players = parsePlayers(typeof data === 'object' && data !== null ? (data as Record<string, unknown>).players : null)
@@ -437,6 +458,10 @@ export function joinRoomByCode(profile: PlayerProfile, rawCode: string): void {
 
   handshake.telStart.onMessage = (data, { peerId }) => {
     if (currentSession === session && isFromTelephoneHost(peerId)) applyMatchStart(data)
+  }
+
+  handshake.telToLobby.onMessage = (data, { peerId }) => {
+    if (currentSession === session && isFromTelephoneHost(peerId)) applyReturnToLobby(data)
   }
 
   handshake.telEnded.onMessage = (data, { peerId }) => {
