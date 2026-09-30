@@ -1,0 +1,23 @@
+Code Whispers
+Copyright (C) 2026 João Victor Ventura Martins
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version. See the LICENSE file for the full text.
+
+Additional permission under GNU AGPL version 3 section 7
+
+If you modify this Program, or any covered work, by linking or combining
+it with the GSAP library (or a modified version of that library),
+containing parts covered by the terms of the GSAP Standard "No Charge"
+License (https://gsap.com/standard-license), the licensors of this Program
+grant you additional permission to convey the resulting work.
+Corresponding Source for a non-source form of such a combination shall not
+include the source code for the parts of GSAP used, but shall include the
+source code of the covered work.
+
+Third-party components bundled with the game keep their own licenses:
+CodeMirror, Trystero and fflate (MIT), canvas-confetti (ISC), GSAP (GSAP
+Standard "No Charge" License) and the Dela Gothic One, Figtree and
+JetBrains Mono fonts (SIL Open Font License 1.1).
