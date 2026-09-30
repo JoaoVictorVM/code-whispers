@@ -30,6 +30,7 @@ function mount(root: HTMLElement): void {
   const title = document.createElement('h1')
   title.dataset.role = 'chain-title'
   title.className = 'display-title text-3xl sm:text-4xl'
+  title.textContent = 'Revelação'
   const position = document.createElement('p')
   position.dataset.role = 'chain-position'
   position.className = 'rounded-full border-[3px] border-ink bg-sunflower px-4 py-0.5 font-display text-base text-ink'
