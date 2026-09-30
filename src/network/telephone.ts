@@ -6,7 +6,10 @@ import {
   answerPayload,
   appendStep,
   createChains,
+  firstCursor,
+  nextCursor,
   parseChains,
+  parseCursor,
   parseProgress,
   parseStepMessage,
   stepInput,
@@ -24,6 +27,7 @@ type SubmitPayload = { step: number; answer: AnswerPayload }
 type RetractPayload = { step: number }
 type ProgressPayload = { step: number; readyIds: string[] }
 type FinishPayload = { chains: ChainPayload[] }
+type CursorPayload = { chain: number; entry: number }
 
 interface TelephoneActions {
   step: MessageAction<StepPayload>
@@ -31,6 +35,7 @@ interface TelephoneActions {
   retract: MessageAction<RetractPayload>
   progress: MessageAction<ProgressPayload>
   finish: MessageAction<FinishPayload>
+  cursor: MessageAction<CursorPayload>
 }
 
 let attachedRoom: Room | null = null
@@ -85,6 +90,7 @@ function dispatchStep(): void {
       readyIds: [],
       localReady: false,
       chains: null,
+      revealCursor: firstCursor(),
     },
   })
 }
@@ -105,7 +111,7 @@ function finishMatch(): void {
   gameState.patch({
     screen: 'revelacao',
     lobby: { ...lobby, stage: 'reveal' },
-    telephone: { ...telephone, readyIds: [], localReady: false, chains: hostChains },
+    telephone: { ...telephone, readyIds: [], localReady: false, chains: hostChains, revealCursor: firstCursor() },
   })
 }
 
@@ -198,6 +204,7 @@ function handleStep(data: unknown, peerId: string): void {
       readyIds: [],
       localReady: false,
       chains: null,
+      revealCursor: firstCursor(),
     },
   })
 }
@@ -223,8 +230,21 @@ function handleFinish(data: unknown, peerId: string): void {
   gameState.patch({
     screen: 'revelacao',
     lobby: { ...lobby, stage: 'reveal' },
-    telephone: { ...telephone, readyIds: [], localReady: false, chains },
+    telephone: { ...telephone, readyIds: [], localReady: false, chains, revealCursor: firstCursor() },
   })
+}
+
+function isRevealing(state: GameState): boolean {
+  return state.connection.status === 'connected' && state.lobby?.stage === 'reveal' && Boolean(state.telephone?.chains)
+}
+
+function handleCursor(data: unknown, peerId: string): void {
+  const state = gameState.get()
+  const { lobby, telephone } = state
+  if (!isFromHost(state, peerId) || !isRevealing(state) || !lobby || !telephone?.chains) return
+  const cursor = parseCursor(data, telephone.chains.length)
+  if (!cursor) return
+  gameState.patch({ telephone: { ...telephone, revealCursor: cursor } })
 }
 
 function attach(room: Room): void {
@@ -236,6 +256,7 @@ function attach(room: Room): void {
     retract: room.makeAction<RetractPayload>('tel_retract'),
     progress: room.makeAction<ProgressPayload>('tel_progress'),
     finish: room.makeAction<FinishPayload>('tel_finish'),
+    cursor: room.makeAction<CursorPayload>('tel_cursor'),
   }
   created.submit.onMessage = (data, { peerId }) => {
     if (attachedRoom === room) handleSubmit(data, peerId)
@@ -251,6 +272,9 @@ function attach(room: Room): void {
   }
   created.finish.onMessage = (data, { peerId }) => {
     if (attachedRoom === room) handleFinish(data, peerId)
+  }
+  created.cursor.onMessage = (data, { peerId }) => {
+    if (attachedRoom === room) handleCursor(data, peerId)
   }
   actions = created
 }
@@ -282,6 +306,17 @@ export function stopTelephone(): void {
   unsubscribe?.()
   unsubscribe = null
   detach()
+}
+
+export function advanceReveal(): boolean {
+  const state = gameState.get()
+  const { telephone } = state
+  if (!isHost(state) || !isRevealing(state) || !telephone?.chains || !actions) return false
+  const next = nextCursor(telephone.revealCursor, telephone.chains.length)
+  if (!next) return false
+  actions.cursor.send(next).catch(() => undefined)
+  gameState.patch({ telephone: { ...telephone, revealCursor: next } })
+  return true
 }
 
 export function submitStep(content: StepContent): boolean {

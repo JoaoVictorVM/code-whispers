@@ -27,6 +27,7 @@ function step(overrides: Partial<TelephoneState>): TelephoneState {
     readyIds: [],
     localReady: false,
     chains: null,
+    revealCursor: { chain: 0, entry: 0 },
     ...overrides,
   }
 }

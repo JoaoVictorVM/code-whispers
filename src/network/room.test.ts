@@ -32,6 +32,7 @@ const {
   hostRoom,
   hostTelephoneRoom,
   startTelephoneMatch,
+  returnToLobby,
   joinRoomByCode,
   leaveRoom,
   getActiveRoom,
@@ -533,13 +534,76 @@ describe('telephone room', () => {
     hostTelephoneRoom(host)
     receive('hello', guest, 'peer-a')
     receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
-    const leftover = { step: 2, totalSteps: 3, stepKind: 'code' as const, received: null, readyIds: [], localReady: true, chains: null }
+    const leftover = { step: 2, totalSteps: 3, stepKind: 'code' as const, received: null, readyIds: [], localReady: true, chains: null, revealCursor: { chain: 0, entry: 0 } }
     gameState.patch({ telephone: leftover })
     startTelephoneMatch()
     expect(gameState.get().telephone).toBeNull()
     gameState.patch({ telephone: leftover })
     leaveRoom()
     expect(gameState.get().telephone).toBeNull()
+  })
+
+  function revealWith(entry: number): void {
+    const state = gameState.get()
+    gameState.patch({
+      lobby: { ...state.lobby!, stage: 'reveal' },
+      telephone: {
+        step: 2,
+        totalSteps: 3,
+        stepKind: 'code',
+        received: null,
+        readyIds: [],
+        localReady: false,
+        chains: Array.from({ length: 3 }, () => ({ owner: host, entries: [] })),
+        revealCursor: { chain: 2, entry },
+      },
+    })
+  }
+
+  it('host returns everyone to the waiting room only after the reveal ends', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    startTelephoneMatch()
+    revealWith(1)
+    expect(returnToLobby()).toBe(false)
+    expect(lastRoom().actions.tel_to_lobby.send).not.toHaveBeenCalled()
+    revealWith(2)
+    expect(returnToLobby()).toBe(true)
+    const { screen, lobby, telephone } = gameState.get()
+    expect(lastRoom().actions.tel_to_lobby.send).toHaveBeenCalledWith({ players: lobby?.players })
+    expect(screen).toBe('sala')
+    expect(lobby?.stage).toBe('lobby')
+    expect(lobby?.players).toHaveLength(3)
+    expect(telephone).toBeNull()
+  })
+
+  it('room accepts new players again after returning to the waiting room', () => {
+    hostTelephoneRoom(host)
+    receive('hello', guest, 'peer-a')
+    receive('hello', { nickname: 'Gui', avatarId: 3 }, 'peer-b')
+    startTelephoneMatch()
+    revealWith(2)
+    returnToLobby()
+    receive('hello', { nickname: 'Breno', avatarId: 5 }, 'peer-c')
+    expect(lastRoom().actions.in_progress.send).not.toHaveBeenCalled()
+    expect(gameState.get().lobby?.players.map((player) => player.id)).toEqual(['self-peer', 'peer-a', 'peer-b', 'peer-c'])
+  })
+
+  it('guest follows the host back to the waiting room', () => {
+    joinRoomByCode(guest, 'AB3XYZ')
+    receive('welcome', { kind: 'telephone', ...host, players: threeSeats }, 'host-peer')
+    receive('tel_start', { players: threeSeats }, 'host-peer')
+    receive('tel_to_lobby', { players: telephonePlayers }, 'host-peer')
+    expect(gameState.get().screen).toBe('etapa')
+    revealWith(2)
+    receive('tel_to_lobby', { players: telephonePlayers }, 'peer-b')
+    expect(gameState.get().screen).toBe('etapa')
+    receive('tel_to_lobby', { players: telephonePlayers }, 'host-peer')
+    const { screen, lobby, telephone } = gameState.get()
+    expect(screen).toBe('sala')
+    expect(lobby).toMatchObject({ stage: 'lobby', players: telephonePlayers })
+    expect(telephone).toBeNull()
   })
 
   it('leaving the waiting room clears the lobby', () => {

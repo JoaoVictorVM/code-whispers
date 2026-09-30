@@ -5,9 +5,14 @@ import {
   appendStep,
   chainForSeat,
   createChains,
+  firstCursor,
+  isRevealFinished,
+  nextCursor,
   parseChains,
+  parseCursor,
   parseProgress,
   parseStepMessage,
+  revealButtonLabel,
   seatForChain,
   stepInput,
   stepKind,
@@ -158,5 +163,33 @@ describe('telephone protocol', () => {
     expect(parseChains(chains.map((chain) => ({ ...chain, entries: chain.entries.slice(0, 2) })), 3)).toBeNull()
     expect(parseChains(chains.map((chain) => ({ ...chain, entries: [chain.entries[1], chain.entries[0], chain.entries[2]] })), 3)).toBeNull()
     expect(parseChains(chains.map((chain) => ({ ...chain, owner: { nickname: 'x', avatarId: 1 } })), 3)).toBeNull()
+  })
+
+  it('walks the reveal through every entry of every chain in order', () => {
+    const visited = []
+    for (let cursor: ReturnType<typeof nextCursor> = firstCursor(); cursor; cursor = nextCursor(cursor, 3)) {
+      visited.push(`${cursor.chain}.${cursor.entry}`)
+    }
+    expect(visited).toEqual(['0.0', '0.1', '0.2', '1.0', '1.1', '1.2', '2.0', '2.1', '2.2'])
+  })
+
+  it('finishes the reveal on the last entry of the last chain', () => {
+    expect(isRevealFinished({ chain: 2, entry: 2 }, 3)).toBe(true)
+    expect(isRevealFinished({ chain: 2, entry: 1 }, 3)).toBe(false)
+    expect(isRevealFinished({ chain: 1, entry: 2 }, 3)).toBe(false)
+  })
+
+  it('labels the host button by position', () => {
+    expect(revealButtonLabel({ chain: 0, entry: 0 }, 3)).toBe('Próximo')
+    expect(revealButtonLabel({ chain: 0, entry: 2 }, 3)).toBe('Próxima cadeia')
+    expect(revealButtonLabel({ chain: 2, entry: 2 }, 3)).toBe('Voltar para a sala')
+  })
+
+  it('parses cursors inside the chains only', () => {
+    expect(parseCursor({ chain: 1, entry: 2 }, 3)).toEqual({ chain: 1, entry: 2 })
+    expect(parseCursor({ chain: -1, entry: 0 }, 3)).toBeNull()
+    expect(parseCursor({ chain: 3, entry: 0 }, 3)).toBeNull()
+    expect(parseCursor({ chain: 0, entry: 1.5 }, 3)).toBeNull()
+    expect(parseCursor(null, 3)).toBeNull()
   })
 })

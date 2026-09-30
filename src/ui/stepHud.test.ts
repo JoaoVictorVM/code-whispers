@@ -11,6 +11,7 @@ const telephone: TelephoneState = {
   readyIds: [],
   localReady: false,
   chains: null,
+  revealCursor: { chain: 0, entry: 0 },
 }
 
 describe('step hud', () => {

@@ -1,4 +1,4 @@
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, Prec } from '@codemirror/state'
 import {
   EditorView,
   drawSelection,
@@ -29,6 +29,7 @@ export interface CreateEditorOptions {
   initialLanguage?: LanguageId
   initialCode?: string
   onChange?: (snapshot: EditorSnapshot) => void
+  fitContent?: boolean
 }
 
 export interface CodeEditor {
@@ -47,12 +48,14 @@ function insertIndent(view: EditorView): boolean {
   return true
 }
 
+const fitContentHeight = Prec.highest(EditorView.theme({ '&': { height: 'auto', maxHeight: '480px' } }))
+
 function countChars(code: string): number {
   return [...code].length
 }
 
 export function createEditor(options: CreateEditorOptions): CodeEditor {
-  const { parent, readOnly = false, initialCode = '', onChange } = options
+  const { parent, readOnly = false, initialCode = '', onChange, fitContent = false } = options
   let language: LanguageId = options.initialLanguage ?? DEFAULT_LANGUAGE
   let destroyed = false
   const languageCompartment = new Compartment()
@@ -124,6 +127,7 @@ export function createEditor(options: CreateEditorOptions): CodeEditor {
         EditorState.tabSize.of(2),
         keymap.of([{ key: 'Tab', run: insertIndent }, ...defaultKeymap, ...historyKeymap]),
         boardTheme,
+        fitContent ? fitContentHeight : [],
         languageCompartment.of(languageExtension(language)),
         EditorState.readOnly.of(readOnly),
         EditorState.changeFilter.of(() => !readOnly),
